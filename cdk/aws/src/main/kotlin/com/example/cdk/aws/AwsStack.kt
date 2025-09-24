@@ -248,8 +248,7 @@ class AwsStack(
                 .resourceId(resource.id)
                 .httpMethod("ANY")
                 .authorization("NONE")
-//                .apiKeyRequired(true)  // Require API key
-                .apiKeyRequired(false)  // Require API key
+                .apiKeyRequired(true)  // Require API key
                 .build()
         )
 
@@ -318,16 +317,16 @@ class AwsStack(
         )
 
 
-//        // Link API Key to Usage Plan
-//        ApiGatewayUsagePlanKey(
-//            this,
-//            "Demo-Spring-Clean-Architecture-UsagePlanKey",
-//            ApiGatewayUsagePlanKeyConfig.builder()
-//                .keyId(apiKey.id)
-//                .keyType("API_KEY")
-//                .usagePlanId(usagePlan.id)
-//                .build()
-//        )
+        // Link API Key to Usage Plan
+        ApiGatewayUsagePlanKey(
+            this,
+            "Demo-Spring-Clean-Architecture-UsagePlanKey",
+            ApiGatewayUsagePlanKeyConfig.builder()
+                .keyId(apiKey.id)
+                .keyType("API_KEY")
+                .usagePlanId(usagePlan.id)
+                .build()
+        )
 
         // Grant API Gateway permission to invoke Lambda
         LambdaPermission(

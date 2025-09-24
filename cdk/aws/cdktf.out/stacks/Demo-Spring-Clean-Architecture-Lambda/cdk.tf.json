@@ -71,7 +71,7 @@
             "uniqueId": "Demo-Spring-Clean-Architecture-Method"
           }
         },
-        "api_key_required": false,
+        "api_key_required": true,
         "authorization": "NONE",
         "http_method": "ANY",
         "resource_id": "${aws_api_gateway_resource.Demo-Spring-Clean-Architecture-Resource.id}",
@@ -132,6 +132,19 @@
         ],
         "description": "Usage Plan for Spring Clean Architecture Example",
         "name": "Demo-Spring-Clean-Architecture-UsagePlan"
+      }
+    },
+    "aws_api_gateway_usage_plan_key": {
+      "Demo-Spring-Clean-Architecture-UsagePlanKey": {
+        "//": {
+          "metadata": {
+            "path": "Demo-Spring-Clean-Architecture-Lambda/Demo-Spring-Clean-Architecture-UsagePlanKey",
+            "uniqueId": "Demo-Spring-Clean-Architecture-UsagePlanKey"
+          }
+        },
+        "key_id": "${aws_api_gateway_api_key.Demo-Spring-Clean-Architecture-ApiKey.id}",
+        "key_type": "API_KEY",
+        "usage_plan_id": "${aws_api_gateway_usage_plan.Demo-Spring-Clean-Architecture-UsagePlan.id}"
       }
     },
     "aws_iam_policy": {
