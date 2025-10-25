@@ -61,16 +61,7 @@ class AdminForwarder(
             }
 
             path == "requests" && httpRequest.method == HttpMethod.GET -> {
-                logger.info { "Get all requests in journal" }
-                wireMockServer.runCatching {
-                    val result =
-                        Json.getObjectMapper().writeValueAsString(findRequestsMatching(RequestPattern.ANYTHING))
-                    HttpResponse(
-                        HttpStatusCode.valueOf(200),
-                        HttpHeaders().apply { add(HttpHeaders.CONTENT_TYPE, contentType) },
-                        body = result
-                    )
-                }.getOrElse { handleAdminException(it) }
+                handleGetAllRequests(contentType)
             }
 
             path == "mappings" && httpRequest.method == HttpMethod.GET -> {
@@ -180,6 +171,19 @@ class AdminForwarder(
                 )
             }
         }
+    }
+
+    private fun handleGetAllRequests(contentType: String): HttpResponse {
+        logger.info { "Get all requests in journal" }
+        return wireMockServer.runCatching {
+            val result =
+                Json.getObjectMapper().writeValueAsString(findRequestsMatching(RequestPattern.ANYTHING))
+            HttpResponse(
+                HttpStatusCode.valueOf(200),
+                HttpHeaders().apply { add(HttpHeaders.CONTENT_TYPE, contentType) },
+                body = result
+            )
+        }.getOrElse { handleAdminException(it) }
     }
 
     private fun handleAdminException(exception: Throwable) = when (exception) {
