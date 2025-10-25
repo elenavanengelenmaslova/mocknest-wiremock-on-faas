@@ -60,11 +60,23 @@ class AdminForwarder(
                 }.getOrElse { handleAdminException(it) }
             }
 
-            path == "mappings/requests" && httpRequest.method == HttpMethod.GET -> {
+            path == "requests" && httpRequest.method == HttpMethod.GET -> {
                 logger.info { "Get all requests in journal" }
                 wireMockServer.runCatching {
                     val result =
                         Json.getObjectMapper().writeValueAsString(findRequestsMatching(RequestPattern.ANYTHING))
+                    HttpResponse(
+                        HttpStatusCode.valueOf(200),
+                        HttpHeaders().apply { add(HttpHeaders.CONTENT_TYPE, contentType) },
+                        body = result
+                    )
+                }.getOrElse { handleAdminException(it) }
+            }
+
+            path == "mappings" && httpRequest.method == HttpMethod.GET -> {
+                logger.info { "Retrieving all WireMock stub mappings" }
+                wireMockServer.runCatching {
+                    val result = Json.getObjectMapper().writeValueAsString(listAllStubMappings())
                     HttpResponse(
                         HttpStatusCode.valueOf(200),
                         HttpHeaders().apply { add(HttpHeaders.CONTENT_TYPE, contentType) },
@@ -95,6 +107,26 @@ class AdminForwarder(
                     handleAdminException(it)
                 }
 
+            }
+
+            path == "requests" && httpRequest.method == HttpMethod.DELETE -> {
+                logger.info { "Clearing request journal" }
+                wireMockServer.runCatching {
+                    resetRequests()
+                    HttpResponse(HttpStatusCode.valueOf(200), body = "Requests reset successfully")
+                }.getOrElse { handleAdminException(it) }
+            }
+
+            path == "requests/unmatched" && httpRequest.method == HttpMethod.GET -> {
+                logger.info { "Retrieving unmatched requests" }
+                wireMockServer.runCatching {
+                    val result = Json.getObjectMapper().writeValueAsString(findUnmatchedRequests())
+                    HttpResponse(
+                        HttpStatusCode.valueOf(200),
+                        HttpHeaders().apply { add(HttpHeaders.CONTENT_TYPE, contentType) },
+                        body = result
+                    )
+                }.getOrElse { handleAdminException(it) }
             }
 
             path.startsWith("mappings/") -> {
