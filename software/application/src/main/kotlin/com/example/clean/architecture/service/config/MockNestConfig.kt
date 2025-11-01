@@ -2,6 +2,7 @@ package com.example.clean.architecture.service.config
 
 import com.example.clean.architecture.service.wiremock.store.ObjectStorageFilesStore
 import com.example.clean.architecture.service.wiremock.store.ObjectStorageMappingsStore
+import com.example.clean.architecture.service.wiremock.store.adapters.ObjectStorageWireMockStores
 import com.github.tomakehurst.wiremock.WireMockServer
 import com.github.tomakehurst.wiremock.common.ConsoleNotifier
 import com.github.tomakehurst.wiremock.core.WireMockConfiguration.wireMockConfig
@@ -19,7 +20,7 @@ private val logger = KotlinLogging.logger {}
 class MockNestConfig {
 
     @Value("\${mocknest.root-dir:mocknest}")
-    private val rootDir: String = "mocknest"
+    internal val rootDir: String = "mocknest"
 
     @Bean
     fun directCallHttpServerFactory() = DirectCallHttpServerFactory()
@@ -36,18 +37,7 @@ class MockNestConfig {
             .notifier(ConsoleNotifier(true))
             .httpServerFactory(directCallHttpServerFactory)
             .disableRequestJournal()
-
-        // Configure custom Stores for FILES and MAPPINGS
-        try {
-            val cfgClass = config::class.java
-            val filesStoreMethod = cfgClass.methods.firstOrNull { it.name == "filesStore" }
-            val mappingsStoreMethod = cfgClass.methods.firstOrNull { it.name == "mappingsStore" }
-            filesStoreMethod?.invoke(config, filesStore)
-            mappingsStoreMethod?.invoke(config, mappingsStore)
-        } catch (e: Exception) {
-            // Fallback: best-effort, actual configuration methods may differ by WireMock version
-            logger.warn { "Could not configure custom Stores via direct methods: ${e.message}" }
-        }
+            .withStores(ObjectStorageWireMockStores(filesStore, mappingsStore))
 
         val server = WireMockServer(config)
         server.start()
