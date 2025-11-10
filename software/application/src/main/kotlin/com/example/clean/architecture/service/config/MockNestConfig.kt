@@ -1,13 +1,14 @@
 package com.example.clean.architecture.service.config
 
-import com.example.clean.architecture.service.wiremock.store.ObjectStorageFilesStore
-import com.example.clean.architecture.service.wiremock.store.ObjectStorageMappingsStore
+import com.example.clean.architecture.persistence.ObjectStorageInterface
 import com.example.clean.architecture.service.wiremock.store.adapters.ObjectStorageWireMockStores
+import com.example.clean.architecture.service.wiremock.store.adapters.ObjectStorageBlobStore
 import com.github.tomakehurst.wiremock.WireMockServer
 import com.github.tomakehurst.wiremock.common.ConsoleNotifier
 import com.github.tomakehurst.wiremock.core.WireMockConfiguration.wireMockConfig
 import com.github.tomakehurst.wiremock.direct.DirectCallHttpServer
 import com.github.tomakehurst.wiremock.direct.DirectCallHttpServerFactory
+import com.github.tomakehurst.wiremock.store.BlobStore
 import io.github.oshai.kotlinlogging.KotlinLogging
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.context.annotation.Bean
@@ -26,10 +27,12 @@ class MockNestConfig {
     fun directCallHttpServerFactory() = DirectCallHttpServerFactory()
 
     @Bean
+    fun wiremockFilesBlobStore(storage: ObjectStorageInterface): BlobStore = ObjectStorageBlobStore(storage)
+
+    @Bean
     fun wireMockServer(
         directCallHttpServerFactory: DirectCallHttpServerFactory,
-        filesStore: ObjectStorageFilesStore,
-        mappingsStore: ObjectStorageMappingsStore,
+        storage: ObjectStorageInterface,
     ): WireMockServer {
         val config = wireMockConfig()
             // Keep classpath root for any built-in defaults (optional)
@@ -37,7 +40,7 @@ class MockNestConfig {
             .notifier(ConsoleNotifier(true))
             .httpServerFactory(directCallHttpServerFactory)
             .disableRequestJournal()
-            .withStores(ObjectStorageWireMockStores(filesStore, mappingsStore))
+            .withStores(ObjectStorageWireMockStores(storage))
 
         val server = WireMockServer(config)
         server.start()

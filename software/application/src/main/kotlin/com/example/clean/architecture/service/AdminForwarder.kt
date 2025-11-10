@@ -2,7 +2,7 @@ package com.example.clean.architecture.service
 
 import com.example.clean.architecture.model.HttpRequest
 import com.example.clean.architecture.model.HttpResponse
-import com.example.clean.architecture.service.wiremock.store.ObjectStorageFilesStore
+import com.github.tomakehurst.wiremock.store.BlobStore
 import com.github.tomakehurst.wiremock.WireMockServer
 import com.github.tomakehurst.wiremock.common.InvalidInputException
 import com.github.tomakehurst.wiremock.common.Json
@@ -21,13 +21,15 @@ private val logger = KotlinLogging.logger {}
 @Component
 class AdminForwarder(
     private val wireMockServer: WireMockServer,
-    private val filesStore: ObjectStorageFilesStore,
+    private val filesStore: BlobStore,
 ) : HandleAdminRequest {
 
-    private fun normalizeMappingToBodyFile(mappingJson: String): String {
+    internal fun normalizeMappingToBodyFile(mappingJson: String): String {
         val mapper = com.fasterxml.jackson.module.kotlin.jacksonObjectMapper()
         val root = mapper.readTree(mappingJson) as com.fasterxml.jackson.databind.node.ObjectNode
-        val response = root.with("response")
+        // Get or create response without overwriting existing one
+        val response = (root.get("response") as? com.fasterxml.jackson.databind.node.ObjectNode)
+            ?: root.putObject("response")
 
         // If already bodyFileName, nothing to do
         if (response.has("bodyFileName")) return mappingJson
@@ -44,15 +46,20 @@ class AdminForwarder(
 
         // Persist into FILES store under the relative file name
         if (isBinary) {
-            val bytes = java.util.Base64.getDecoder().decode(base64Node!!.asText())
+            val bytes = Base64.getDecoder().decode(base64Node.asText())
             filesStore.put(fileName, bytes)
-            val headers = response.with("headers")
-            if (!headers.has("Content-Type")) headers.put("Content-Type", "application/octet-stream")
         } else {
-            val text = bodyNode!!.asText()
+            val text = bodyNode.asText()
             filesStore.put(fileName, text.toByteArray(Charsets.UTF_8))
-            val headers = response.with("headers")
-            if (!headers.has("Content-Type")) headers.put("Content-Type", "application/json")
+        }
+
+        // Get or create headers without overwriting existing headers
+        val headers = (response.get("headers") as? com.fasterxml.jackson.databind.node.ObjectNode)
+            ?: response.putObject("headers")
+
+        // Only set default Content-Type when it's missing
+        if (!headers.has("Content-Type")) {
+            headers.put("Content-Type", if (isBinary) "application/octet-stream" else "application/json")
         }
 
         response.put("bodyFileName", fileName)

@@ -1,8 +1,7 @@
 package com.example.clean.architecture.service.wiremock.store.adapters
 
-import com.example.clean.architecture.service.wiremock.store.ObjectStorageFilesStore
-import com.example.clean.architecture.service.wiremock.store.ObjectStorageMappingsStore
-import com.github.tomakehurst.wiremock.common.InputStreamSource
+import com.example.clean.architecture.persistence.ObjectStorageInterface
+import com.github.tomakehurst.wiremock.common.Json
 import com.github.tomakehurst.wiremock.store.*
 import com.github.tomakehurst.wiremock.stubbing.StubMapping
 import io.github.oshai.kotlinlogging.KotlinLogging
@@ -10,36 +9,30 @@ import java.util.*
 import java.util.stream.Stream
 
 /**
- * A Stores implementation that wires ObjectStorage-backed Stores for FILES and MAPPINGS.
+ * A Stores implementation that wires ObjectStorageInterface directly for FILES and MAPPINGS.
  *
- * - FILES: backed by ObjectStorageFilesStore (Store<String, ByteArray>) via a BlobStore adapter
- * - MAPPINGS: backed by ObjectStorageMappingsStore (Store<String, String>) via a StubMappingStore adapter
- * - All other stores delegate to an ephemeral in-memory implementation.
+ * - FILES: BlobStore implemented directly over ObjectStorageInterface (Base64 + "__files/" prefix)
+ * - MAPPINGS: StubMappingStore implemented directly over ObjectStorageInterface (JSON + "mappings/" prefix)
+ * - All other stores delegate to WireMock's in-memory implementations by returning null.
  */
 class ObjectStorageWireMockStores(
-    private val filesStore: ObjectStorageFilesStore,
-    private val mappingsStore: ObjectStorageMappingsStore,
+    private val storage: ObjectStorageInterface,
 ) : Stores {
 
     private val logger = KotlinLogging.logger {}
 
-
-    private val filesBlobStore: BlobStore = StoreBackedBlobStore(filesStore)
-    private val stubStore: StubMappingStore = StoreBackedStubMappingStore(mappingsStore)
-
+    private val filesBlobStore: BlobStore = ObjectStorageBlobStore(storage)
+    private val stubStore: StubMappingStore = StoreBackedStubMappingStore(storage)
 
     override fun getStubStore(): StubMappingStore = stubStore
     override fun getRequestJournalStore(): RequestJournalStore? = null
-
     override fun getSettingsStore(): SettingsStore?  = null
-
     override fun getScenariosStore(): ScenariosStore? = null
-
     override fun getRecorderStateStore(): RecorderStateStore? = null
 
     override fun getFilesBlobStore(): BlobStore = filesBlobStore
-
     override fun getBlobStore(name: String): BlobStore = filesBlobStore
+
     override fun getObjectStore(
         name: String?,
         persistenceTypeHint: Stores.PersistenceType?,
@@ -47,42 +40,42 @@ class ObjectStorageWireMockStores(
     ): ObjectStore? = null
 
     override fun start() {}
-
     override fun stop() {}
-
 }
 
-/** BlobStore adapter that delegates to a Store<String, ByteArray>. */
-private class StoreBackedBlobStore(
-    private val delegate: Store<String, ByteArray>,
-) : BlobStore {
-    override fun get(key: String): Optional<ByteArray> = delegate.get(key)
-    override fun getStream(key: String): Optional<java.io.InputStream> =
-        get(key).map { java.io.ByteArrayInputStream(it) }
 
-    override fun getStreamSource(key: String): InputStreamSource =
-        InputStreamSource { getStream(key).orElse(java.io.ByteArrayInputStream(ByteArray(0))) }
-
-    override fun put(key: String, value: ByteArray) = delegate.put(key, value)
-    override fun remove(key: String) = delegate.remove(key)
-    override fun getAllKeys(): Stream<String> = delegate.getAllKeys()
-    override fun clear() = delegate.clear()
-}
-
-/** StubMappingStore that serializes to/from JSON via a Store<String, String>. */
+/** StubMappingStore implemented directly over ObjectStorageInterface. */
 private class StoreBackedStubMappingStore(
-    private val delegate: Store<UUID, StubMapping>,
+    private val storage: ObjectStorageInterface,
 ) : StubMappingStore {
-    override fun get(id: UUID): Optional<StubMapping> = delegate.get(id)
+    private val prefix = "mappings/"
+    private fun keyOf(id: UUID): String = "$prefix$id"
 
-    override fun getAll(): Stream<StubMapping> = delegate.getAllKeys()
-        .map { it }
-        .map { key -> delegate.get(key).orElse(null) }
-        .filter { it != null }
+    override fun get(id: UUID): Optional<StubMapping> =
+        Optional.ofNullable(storage.get(keyOf(id)))
+            .map { json -> Json.read(json, StubMapping::class.java) }
 
-    override fun add(stub: StubMapping): Unit = delegate.put(stub.id, stub)
-    override fun replace(existing: StubMapping, updated: StubMapping) = delegate.put(updated.id, updated)
-    override fun remove(stubMapping: StubMapping) = delegate.remove(stubMapping.id)
+    override fun getAll(): Stream<StubMapping> =
+        storage.list().asSequence()
+            .filter { it.startsWith(prefix) }
+            .mapNotNull { key -> storage.get(key) }
+            .mapNotNull { json -> runCatching { Json.read(json, StubMapping::class.java) }.getOrNull() }
+            .toList()
+            .stream()
 
-    override fun clear() = delegate.clear()
+    override fun add(stub: StubMapping) {
+        storage.save(keyOf(stub.id), Json.write(stub))
+    }
+
+    override fun replace(existing: StubMapping, updated: StubMapping) {
+        storage.save(keyOf(updated.id), Json.write(updated))
+    }
+
+    override fun remove(stubMapping: StubMapping) {
+        storage.delete(keyOf(stubMapping.id))
+    }
+
+    override fun clear() {
+        storage.list().filter { it.startsWith(prefix) }.forEach { storage.delete(it) }
+    }
 }
