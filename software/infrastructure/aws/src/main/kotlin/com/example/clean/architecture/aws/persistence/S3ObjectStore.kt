@@ -32,6 +32,12 @@ class S3ObjectStore(
                     bucket = bucketName
                     key = id
                     body = byteStream
+                    contentLength = byteStream.contentLength
+                    contentType = when {
+                        id.endsWith(".json", ignoreCase = true) -> "application/json; charset=UTF-8"
+                        id.endsWith(".txt", ignoreCase = true)  -> "text/plain; charset=UTF-8"
+                        else -> "application/octet-stream"
+                    }
                 }
             )
             "s3://$bucketName/$id"
@@ -53,7 +59,7 @@ class S3ObjectStore(
             content
         }.onFailure { e ->
             logger.info { "Mapping with id: $id not found: ${e.message}" }
-        }.getOrThrow()
+        }.getOrNull()
     }
 
     override fun delete(id: String): Unit = runBlocking {
