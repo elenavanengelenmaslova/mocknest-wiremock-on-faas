@@ -61,33 +61,40 @@ private class StoreBackedStubMappingStore(
     private val storage: ObjectStorageInterface,
 ) : StubMappingStore {
     private val prefix = "mappings/"
-    private fun keyOf(id: UUID): String = "$prefix$id"
+    private fun keyJson(id: UUID): String = "$prefix$id.json"
 
     override fun get(id: UUID): Optional<StubMapping> =
-        Optional.ofNullable(storage.get(keyOf(id)))
+        // Prefer new ".json" convention; fall back to legacy key without extension if present
+        Optional.ofNullable(runCatching { storage.get(keyJson(id)) }.getOrNull()
+            ?: runCatching { storage.get("$prefix$id") }.getOrNull())
             .map { json -> Json.read(json, StubMapping::class.java) }
 
     override fun getAll(): Stream<StubMapping> =
-        storage.list().asSequence()
-            .filter { it.startsWith(prefix) }
-            .mapNotNull { key -> storage.get(key) }
+        storage.listPrefix(prefix).asSequence()
+            .filter { it.endsWith(".json", ignoreCase = true) }
+            .mapNotNull { key -> runCatching { storage.get(key) }.getOrNull() }
             .mapNotNull { json -> runCatching { Json.read(json, StubMapping::class.java) }.getOrNull() }
             .toList()
             .stream()
 
     override fun add(stub: StubMapping) {
-        storage.save(keyOf(stub.id), Json.write(stub))
+        // Persist only using the .json convention to avoid duplicate saves
+        storage.save(keyJson(stub.id), Json.write(stub))
     }
 
     override fun replace(existing: StubMapping, updated: StubMapping) {
-        storage.save(keyOf(updated.id), Json.write(updated))
+        storage.save(keyJson(updated.id), Json.write(updated))
     }
 
     override fun remove(stubMapping: StubMapping) {
-        storage.delete(keyOf(stubMapping.id))
+        // Delete both possible keys to be safe
+        runCatching { storage.delete(keyJson(stubMapping.id)) }
+        runCatching { storage.delete("$prefix${stubMapping.id}") }
     }
 
     override fun clear() {
-        storage.list().filter { it.startsWith(prefix) }.forEach { storage.delete(it) }
+        storage.listPrefix(prefix)
+            .filter { it.startsWith(prefix) }
+            .forEach { storage.delete(it) }
     }
 }

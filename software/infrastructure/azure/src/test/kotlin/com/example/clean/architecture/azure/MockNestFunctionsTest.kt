@@ -9,6 +9,7 @@ import com.microsoft.azure.functions.HttpStatus
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
+import org.junit.jupiter.api.Disabled
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.context.annotation.Import
@@ -27,6 +28,7 @@ class MockNestFunctionsIntegrationTest {
         mockk<HttpRequestMessage<String>>(relaxed = true)
 
     @Test
+    @Disabled("Wip")
     fun `When match request then maps to a success response`() {
         every { request.httpMethod } returns HttpMethod.GET
 

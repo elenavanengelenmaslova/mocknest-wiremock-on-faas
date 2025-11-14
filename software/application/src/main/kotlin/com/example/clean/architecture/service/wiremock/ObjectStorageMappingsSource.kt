@@ -11,7 +11,6 @@ import kotlinx.coroutines.flow.asFlow
 import kotlinx.coroutines.flow.flatMapMerge
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.runBlocking
-import java.util.*
 
 /**
  * WireMock MappingsSource backed by ObjectStorageInterface.
@@ -26,8 +25,6 @@ class ObjectStorageMappingsSource(
 ) : MappingsSource {
 
     private val logger = KotlinLogging.logger {}
-
-    private fun keyOf(id: UUID) = "$prefix$id.json"
 
     @OptIn(ExperimentalCoroutinesApi::class)
     override fun loadMappingsInto(stubMappings: StubMappings) {
@@ -70,19 +67,12 @@ class ObjectStorageMappingsSource(
         }
     }
 
-    override fun save(mapping: StubMapping) {
-        storage.save(keyOf(mapping.id), Json.write(mapping))
-    }
+    // Loader-only: persistence is handled by StubMappingStore. Avoid duplicate saves.
+    override fun save(mapping: StubMapping) { /* no-op */ }
 
-    override fun save(mappings: List<StubMapping>) {
-        mappings.forEach { save(it) }
-    }
+    override fun save(mappings: List<StubMapping>) { /* no-op */ }
 
-    override fun remove(mapping: StubMapping) {
-        storage.delete(keyOf(mapping.id))
-    }
+    override fun remove(mapping: StubMapping) { /* no-op */ }
 
-    override fun removeAll() {
-        storage.listPrefix(prefix).forEach { storage.delete(it) }
-    }
+    override fun removeAll() { /* no-op */ }
 }

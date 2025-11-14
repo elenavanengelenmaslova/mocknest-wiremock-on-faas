@@ -131,6 +131,50 @@ class AdminForwarder(
                 }.getOrElse { handleAdminException(it) }
             }
 
+            // DELETE /__admin/mappings -> delete all mappings and purge files
+            path == "mappings" && httpRequest.method == HttpMethod.DELETE -> {
+                logger.info { "Deleting all WireMock stub mappings and files" }
+                wireMockServer.runCatching {
+                    // Clear all stubs (and other ephemeral state) then purge files
+                    resetAll()
+                    filesStore.clear()
+                    HttpResponse(HttpStatusCode.valueOf(200), body = "All stub mappings and files deleted successfully")
+                }.getOrElse { handleAdminException(it) }
+            }
+
+            // GET /__admin/files -> list all file keys
+            path == "files" && httpRequest.method == HttpMethod.GET -> {
+                logger.info { "Listing all files under __files/" }
+                runCatching {
+                    val keys = filesStore.getAllKeys().toList()
+                    val result = Json.getObjectMapper().writeValueAsString(keys)
+                    HttpResponse(
+                        HttpStatusCode.valueOf(200),
+                        HttpHeaders().apply { add(HttpHeaders.CONTENT_TYPE, contentType) },
+                        body = result
+                    )
+                }.getOrElse { handleAdminException(it) }
+            }
+
+            // DELETE /__admin/files -> purge all files under __files/
+            path == "files" && httpRequest.method == HttpMethod.DELETE -> {
+                logger.info { "Deleting all files under __files/" }
+                runCatching {
+                    filesStore.clear()
+                    HttpResponse(HttpStatusCode.valueOf(200), body = "All files deleted successfully")
+                }.getOrElse { handleAdminException(it) }
+            }
+
+            // DELETE /__admin/files/{relativePath}
+            path.startsWith("files/") && httpRequest.method == HttpMethod.DELETE -> {
+                val fileKey = path.removePrefix("files/")
+                logger.info { "Deleting file under __files/: $fileKey" }
+                runCatching {
+                    filesStore.remove(fileKey)
+                    HttpResponse(HttpStatusCode.valueOf(200), body = "File '$fileKey' deleted successfully")
+                }.getOrElse { handleAdminException(it) }
+            }
+
             path == "requests" && httpRequest.method == HttpMethod.DELETE -> {
                 logger.info { "Clearing request journal" }
                 wireMockServer.runCatching {
