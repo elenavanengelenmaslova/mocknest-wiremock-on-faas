@@ -125,7 +125,7 @@ class AdminForwarder(
                         val normalized = normalizeMappingToBodyFile(bodyString)
                         val mapping = normalized.toStubMapping()
                         addStubMapping(mapping)
-                        "Mapping ${'$'}{mapping.id} added"
+                        "Mapping ${mapping.id} added"
                     }
                     HttpResponse(httpStatusCode = HttpStatusCode.valueOf(201), body = addedMapping)
                 }.getOrElse { handleAdminException(it) }

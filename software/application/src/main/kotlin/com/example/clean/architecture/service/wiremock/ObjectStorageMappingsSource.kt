@@ -27,7 +27,7 @@ class ObjectStorageMappingsSource(
 
     private val logger = KotlinLogging.logger {}
 
-    private fun keyOf(id: UUID) = "$prefix$id"
+    private fun keyOf(id: UUID) = "$prefix$id.json"
 
     @OptIn(ExperimentalCoroutinesApi::class)
     override fun loadMappingsInto(stubMappings: StubMappings) {
