@@ -23,12 +23,21 @@ class ObjectStorageWireMockStores(
 
     private val filesBlobStore: BlobStore = ObjectStorageBlobStore(storage)
     private val stubStore: StubMappingStore = StoreBackedStubMappingStore(storage)
+    private val settingsStore: SettingsStore = InMemorySettingsStore()
+
+    // In-memory fallbacks for all other stores to avoid NPEs
+    private val requestJournalStore: RequestJournalStore = InMemoryRequestJournalStore()
+    private val scenariosStore: ScenariosStore = InMemoryScenariosStore()
+    private val recorderStateStore: RecorderStateStore = InMemoryRecorderStateStore()
+
+    // Object stores by name (in-memory)
+    private val objectStores = java.util.concurrent.ConcurrentHashMap<String, ObjectStore>()
 
     override fun getStubStore(): StubMappingStore = stubStore
-    override fun getRequestJournalStore(): RequestJournalStore? = null
-    override fun getSettingsStore(): SettingsStore?  = null
-    override fun getScenariosStore(): ScenariosStore? = null
-    override fun getRecorderStateStore(): RecorderStateStore? = null
+    override fun getRequestJournalStore(): RequestJournalStore = requestJournalStore
+    override fun getSettingsStore(): SettingsStore = settingsStore
+    override fun getScenariosStore(): ScenariosStore = scenariosStore
+    override fun getRecorderStateStore(): RecorderStateStore = recorderStateStore
 
     override fun getFilesBlobStore(): BlobStore = filesBlobStore
     override fun getBlobStore(name: String): BlobStore = filesBlobStore
@@ -37,7 +46,10 @@ class ObjectStorageWireMockStores(
         name: String?,
         persistenceTypeHint: Stores.PersistenceType?,
         maxSize: Int,
-    ): ObjectStore? = null
+    ): ObjectStore {
+        val key = name ?: "default"
+        return objectStores.computeIfAbsent(key) { InMemoryObjectStore(maxSize) }
+    }
 
     override fun start() {}
     override fun stop() {}
