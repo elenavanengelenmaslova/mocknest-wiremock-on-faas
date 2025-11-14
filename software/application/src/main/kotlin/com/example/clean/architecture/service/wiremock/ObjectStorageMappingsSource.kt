@@ -31,7 +31,7 @@ class ObjectStorageMappingsSource(
         // WireMock expects blocking; we stream internally with bounded concurrency and block until done
         runBlocking {
             val keys = runCatching { storage.listPrefix(prefix) }
-                .onFailure { e -> logger.warn(e) { "Failed to list mappings with prefix '$prefix'" } }
+                .onFailure { e -> logger.error(e) { "Failed to list mappings with prefix '$prefix'" } }
                 .getOrDefault(emptyList())
 
             if (keys.isEmpty()) {
@@ -47,19 +47,19 @@ class ObjectStorageMappingsSource(
                 .flatMapMerge(concurrency) { key ->
                     flow {
                         val json = runCatching { storage.get(key) }
-                            .onFailure { e -> logger.debug { "Failed to get mapping '$key': $e" } }
+                            .onFailure { e -> logger.error { "Failed to get mapping '$key': $e" } }
                             .getOrNull()
                         if (!json.isNullOrBlank()) emit(key to json)
                     }
                 }
                 .collect { (key, json) ->
                     runCatching { Json.read(json, StubMapping::class.java) }
-                        .onSuccess { mapping ->
+                        .mapCatching { mapping ->
+                            // Adding may fail for duplicates or invalid mappings; warn and continue
                             stubMappings.addMapping(mapping)
                             loaded++
-                        }
-                        .onFailure { e ->
-                            logger.error (e) { "Failed to parse mapping from '$key'" }
+                        }.onFailure { e ->
+                            logger.error(e) { "Skipping mapping: $key: $e" }
                         }
                 }
 
@@ -68,11 +68,15 @@ class ObjectStorageMappingsSource(
     }
 
     // Loader-only: persistence is handled by StubMappingStore. Avoid duplicate saves.
-    override fun save(mapping: StubMapping) { /* no-op */ }
+    override fun save(mapping: StubMapping) { /* no-op */
+    }
 
-    override fun save(mappings: List<StubMapping>) { /* no-op */ }
+    override fun save(mappings: List<StubMapping>) { /* no-op */
+    }
 
-    override fun remove(mapping: StubMapping) { /* no-op */ }
+    override fun remove(mapping: StubMapping) { /* no-op */
+    }
 
-    override fun removeAll() { /* no-op */ }
+    override fun removeAll() { /* no-op */
+    }
 }
