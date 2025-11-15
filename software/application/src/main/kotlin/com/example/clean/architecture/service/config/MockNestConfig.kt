@@ -1,6 +1,7 @@
 package com.example.clean.architecture.service.config
 
 import com.example.clean.architecture.persistence.ObjectStorageInterface
+import com.example.clean.architecture.service.wiremock.CompositeMappingsSource
 import com.example.clean.architecture.service.wiremock.ObjectStorageMappingsSource
 import com.example.clean.architecture.service.wiremock.store.adapters.ObjectStorageWireMockStores
 import com.example.clean.architecture.service.wiremock.store.adapters.ObjectStorageBlobStore
@@ -42,7 +43,7 @@ class MockNestConfig {
             .httpServerFactory(directCallHttpServerFactory)
             .disableRequestJournal()
             .withStores(ObjectStorageWireMockStores(storage))
-            .mappingSource(ObjectStorageMappingsSource(storage))
+            .mappingSource(CompositeMappingsSource(ObjectStorageMappingsSource(storage), rootDir))
 
 
         val server = WireMockServer(config)

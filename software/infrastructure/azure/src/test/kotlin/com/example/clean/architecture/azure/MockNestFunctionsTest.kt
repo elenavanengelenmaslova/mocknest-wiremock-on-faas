@@ -9,7 +9,6 @@ import com.microsoft.azure.functions.HttpStatus
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
-import org.junit.jupiter.api.Disabled
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.context.annotation.Import
@@ -28,11 +27,12 @@ class MockNestFunctionsIntegrationTest {
         mockk<HttpRequestMessage<String>>(relaxed = true)
 
     @Test
-    @Disabled("Wip")
     fun `When match request then maps to a success response`() {
         every { request.httpMethod } returns HttpMethod.GET
 
         mockNestFunctions.forwardClientRequest(request, "health", context)
+        val url = Thread.currentThread().contextClassLoader.getResource("mocknest/mappings/health.json")
+        println("health.json on classpath? url=$url")
         verify {
             request
                 .createResponseBuilder(HttpStatus.valueOf(200))
