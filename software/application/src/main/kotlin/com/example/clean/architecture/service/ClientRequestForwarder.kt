@@ -52,12 +52,12 @@ class ClientRequestForwarder(private val directCallHttpServer: DirectCallHttpSer
                 .withBody(httpRequest.body?.toString().orEmpty().toByteArray())
                 .build()
 
-        logger.debug { "Calling wiremock with request: ${httpRequest.method} ${httpRequest.path}" }
+        logger.info { "Calling wiremock with request: ${httpRequest.method} ${httpRequest.path}" }
 
         // Call stubRequest on the DirectCallHttpServer
         val response = directCallHttpServer.stubRequest(wireMockRequest)
 
-        logger.trace { "Wiremock response: ${response.bodyAsString}, code: ${response.status}" }
+        logger.info { "Wiremock response: ${response.bodyAsString}, code: ${response.status}" }
         val contentType =
             if (response.headers.contentTypeHeader.isPresent) response.headers.contentTypeHeader.firstValue()
             else ContentType.APPLICATION_JSON.toString()

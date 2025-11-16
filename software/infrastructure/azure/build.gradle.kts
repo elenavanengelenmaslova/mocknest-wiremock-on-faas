@@ -20,6 +20,7 @@ dependencies {
     implementation("org.springframework.cloud:spring-cloud-function-adapter-azure:4.2.2")
     implementation("com.azure:azure-identity:1.15.4")
     implementation("com.azure:azure-storage-blob:12.25.1")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.2")
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testImplementation("io.mockk:mockk:1.13.8")
     testImplementation("org.junit.jupiter:junit-jupiter-api:5.9.2")

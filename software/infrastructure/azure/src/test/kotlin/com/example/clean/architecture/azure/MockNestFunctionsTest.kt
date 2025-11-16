@@ -31,6 +31,8 @@ class MockNestFunctionsIntegrationTest {
         every { request.httpMethod } returns HttpMethod.GET
 
         mockNestFunctions.forwardClientRequest(request, "health", context)
+        val url = Thread.currentThread().contextClassLoader.getResource("mocknest/mappings/health.json")
+        println("health.json on classpath? url=$url")
         verify {
             request
                 .createResponseBuilder(HttpStatus.valueOf(200))
@@ -94,6 +96,66 @@ class MockNestFunctionsIntegrationTest {
                         200
                     )
                 )
+        }
+    }
+
+    @Test
+    fun `When retrieving all mappings then returns 200 status code`() {
+        every { request.httpMethod } returns HttpMethod.GET
+
+        mockNestFunctions.forwardAdminRequest(
+            request,
+            "mappings",
+            context
+        )
+
+        verify {
+            request.createResponseBuilder(HttpStatus.valueOf(200))
+        }
+    }
+
+    @Test
+    fun `When retrieving all requests then returns 200 status code`() {
+        every { request.httpMethod } returns HttpMethod.GET
+
+        mockNestFunctions.forwardAdminRequest(
+            request,
+            "requests",
+            context
+        )
+
+        verify {
+            request.createResponseBuilder(HttpStatus.valueOf(200))
+        }
+    }
+
+    @Test
+    fun `When clearing request journal then returns 200 status code`() {
+        every { request.httpMethod } returns HttpMethod.DELETE
+
+        mockNestFunctions.forwardAdminRequest(
+            request,
+            "requests",
+            context
+        )
+
+        verify {
+            request.createResponseBuilder(HttpStatus.valueOf(200))
+        }
+    }
+
+    @Test
+    fun `When retrieving unmatched requests then returns 200 status code`() {
+        every { request.httpMethod } returns HttpMethod.GET
+
+        mockNestFunctions.forwardAdminRequest(
+            request,
+            "requests/unmatched",
+            context
+        )
+
+        verify {
+            request.createResponseBuilder(HttpStatus.valueOf(200))
         }
     }
 }
