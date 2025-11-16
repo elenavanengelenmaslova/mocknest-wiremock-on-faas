@@ -50,7 +50,7 @@ class AdminForwarderNormalizeMappingTest {
     }
 
     @Test
-    fun `text body is externalized to file, body removed, default content-type added and headers preserved`() {
+    fun `When response has text body Then externalizes to file removes body adds default content-type and preserves headers`() {
         val (admin, bs) = newAdmin()
         val id = "11111111-1111-1111-1111-111111111111"
         val mappingJson = """
@@ -87,7 +87,7 @@ class AdminForwarderNormalizeMappingTest {
     }
 
     @Test
-    fun `base64Body is externalized to file and default octet-stream added when missing`() {
+    fun `When response has base64Body Then externalizes to file and adds default octet stream when missing`() {
         val (admin, bs) = newAdmin()
         val id = "22222222-2222-2222-2222-222222222222"
         val payload = "hello"
@@ -117,7 +117,7 @@ class AdminForwarderNormalizeMappingTest {
     }
 
     @Test
-    fun `mapping with existing bodyFileName is left unchanged and no file written`() {
+    fun `When mapping has existing bodyFileName Then is left unchanged and no file is written`() {
         val (admin, bs) = newAdmin()
         val mappingJson = """
             {

@@ -27,12 +27,11 @@ class MockNestFunctionsIntegrationTest {
         mockk<HttpRequestMessage<String>>(relaxed = true)
 
     @Test
-    fun `When match request then maps to a success response`() {
+    fun `When match request Then maps to a success response`() {
         every { request.httpMethod } returns HttpMethod.GET
 
         mockNestFunctions.forwardClientRequest(request, "health", context)
-        val url = Thread.currentThread().contextClassLoader.getResource("mocknest/mappings/health.json")
-        println("health.json on classpath? url=$url")
+
         verify {
             request
                 .createResponseBuilder(HttpStatus.valueOf(200))
@@ -40,7 +39,7 @@ class MockNestFunctionsIntegrationTest {
     }
 
     @Test
-    fun `When deleting a MockNest mapping then returns 200 status code`() {
+    fun `When deleting a MockNest mapping Then returns 200 status code`() {
         every { request.httpMethod } returns HttpMethod.DELETE
 
         mockNestFunctions.forwardAdminRequest(
