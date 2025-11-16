@@ -56,7 +56,7 @@ class ObjectStorageMappingsSource(
                 .collect { (key, json) ->
                     runCatching { Json.read(json, StubMapping::class.java) }
                         .mapCatching { mapping ->
-                            // Adding may fail for duplicates or invalid mappings; warn and continue
+                            mapping.isPersistent = false
                             stubMappings.addMapping(mapping)
                             loaded++
                         }.onFailure { e ->

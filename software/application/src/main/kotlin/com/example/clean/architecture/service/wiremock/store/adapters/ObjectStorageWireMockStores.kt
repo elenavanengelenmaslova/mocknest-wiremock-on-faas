@@ -6,6 +6,7 @@ import com.github.tomakehurst.wiremock.store.*
 import com.github.tomakehurst.wiremock.stubbing.StubMapping
 import io.github.oshai.kotlinlogging.KotlinLogging
 import java.util.*
+import java.util.concurrent.ConcurrentHashMap
 import java.util.stream.Stream
 
 /**
@@ -24,13 +25,12 @@ class ObjectStorageWireMockStores(
     private val stubStore: StubMappingStore = StoreBackedStubMappingStore(storage)
     private val settingsStore: SettingsStore = InMemorySettingsStore()
 
-    // In-memory fallbacks for all other stores to avoid NPEs
     private val requestJournalStore: RequestJournalStore = InMemoryRequestJournalStore()
     private val scenariosStore: ScenariosStore = InMemoryScenariosStore()
     private val recorderStateStore: RecorderStateStore = InMemoryRecorderStateStore()
 
     // Object stores by name (in-memory)
-    private val objectStores = java.util.concurrent.ConcurrentHashMap<String, ObjectStore>()
+    private val objectStores = ConcurrentHashMap<String, ObjectStore>()
 
     override fun getStubStore(): StubMappingStore = stubStore
     override fun getRequestJournalStore(): RequestJournalStore = requestJournalStore

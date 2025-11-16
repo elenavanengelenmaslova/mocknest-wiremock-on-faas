@@ -1,4 +1,6 @@
 {
+  "id": "76ada7b0-55ae-4229-91c4-396a36f19999",
+  "priority": 2,
   "request": {
     "method": "GET",
     "urlPath": "/health"
@@ -9,5 +11,6 @@
     "headers": {
       "Content-Type": "text/plain"
     }
-  }
+  },
+  "persistent": false
 }
