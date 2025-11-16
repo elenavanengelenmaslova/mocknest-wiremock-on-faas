@@ -1,15 +1,16 @@
 package com.example.clean.architecture.service.config
 
 import com.example.clean.architecture.persistence.ObjectStorageInterface
-import com.example.clean.architecture.service.wiremock.CompositeMappingsSource
-import com.example.clean.architecture.service.wiremock.ObjectStorageMappingsSource
-import com.example.clean.architecture.service.wiremock.store.adapters.ObjectStorageWireMockStores
 import com.example.clean.architecture.service.wiremock.store.adapters.ObjectStorageBlobStore
+import com.example.clean.architecture.service.wiremock.store.adapters.ObjectStorageWireMockStores
 import com.github.tomakehurst.wiremock.WireMockServer
+import com.github.tomakehurst.wiremock.common.ClasspathFileSource
 import com.github.tomakehurst.wiremock.common.ConsoleNotifier
+import com.github.tomakehurst.wiremock.common.filemaker.FilenameMaker
 import com.github.tomakehurst.wiremock.core.WireMockConfiguration.wireMockConfig
 import com.github.tomakehurst.wiremock.direct.DirectCallHttpServer
 import com.github.tomakehurst.wiremock.direct.DirectCallHttpServerFactory
+import com.github.tomakehurst.wiremock.standalone.JsonFileMappingsSource
 import com.github.tomakehurst.wiremock.store.BlobStore
 import io.github.oshai.kotlinlogging.KotlinLogging
 import org.springframework.beans.factory.annotation.Value
@@ -43,7 +44,10 @@ class MockNestConfig {
             .httpServerFactory(directCallHttpServerFactory)
             .disableRequestJournal()
             .withStores(ObjectStorageWireMockStores(storage))
-            .mappingSource(CompositeMappingsSource(ObjectStorageMappingsSource(storage), rootDir))
+            .mappingSource(JsonFileMappingsSource(
+                ClasspathFileSource(rootDir),
+                FilenameMaker()
+            ))
 
 
         val server = WireMockServer(config)

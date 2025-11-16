@@ -28,6 +28,7 @@ class ObjectStorageMappingsSource(
 
     @OptIn(ExperimentalCoroutinesApi::class)
     override fun loadMappingsInto(stubMappings: StubMappings) {
+        logger.info { "Loading objects ObjectStorageMappingsSource: $stubMappings" }
         // WireMock expects blocking; we stream internally with bounded concurrency and block until done
         runBlocking {
             val keys = runCatching { storage.listPrefix(prefix) }

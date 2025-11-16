@@ -15,11 +15,10 @@ import java.util.stream.Stream
  * - MAPPINGS: StubMappingStore implemented directly over ObjectStorageInterface (JSON + "mappings/" prefix)
  * - All other stores delegate to WireMock's in-memory implementations by returning null.
  */
+private val logger = KotlinLogging.logger {}
 class ObjectStorageWireMockStores(
-    private val storage: ObjectStorageInterface,
+    storage: ObjectStorageInterface,
 ) : Stores {
-
-    private val logger = KotlinLogging.logger {}
 
     private val filesBlobStore: BlobStore = ObjectStorageBlobStore(storage)
     private val stubStore: StubMappingStore = StoreBackedStubMappingStore(storage)
@@ -78,18 +77,19 @@ private class StoreBackedStubMappingStore(
             .stream()
 
     override fun add(stub: StubMapping) {
+        if (!stub.shouldBePersisted()) return
         // Persist only using the .json convention to avoid duplicate saves
         storage.save(keyJson(stub.id), Json.write(stub))
     }
 
     override fun replace(existing: StubMapping, updated: StubMapping) {
+        if (!existing.shouldBePersisted()) return
         storage.save(keyJson(updated.id), Json.write(updated))
     }
 
     override fun remove(stubMapping: StubMapping) {
-        // Delete both possible keys to be safe
         runCatching { storage.delete(keyJson(stubMapping.id)) }
-        runCatching { storage.delete("$prefix${stubMapping.id}") }
+            .onFailure { logger.error(it) { "Error deleting ${stubMapping.id}" } }
     }
 
     override fun clear() {
