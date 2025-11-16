@@ -22,7 +22,7 @@ class ObjectStorageWireMockStores(
 ) : Stores {
 
     private val filesBlobStore: BlobStore = ObjectStorageBlobStore(storage)
-    private val stubStore: StubMappingStore = StoreBackedStubMappingStore(storage)
+    private val stubStore: StubMappingStore = InMemoryStubMappingStore()
     private val settingsStore: SettingsStore = InMemorySettingsStore()
 
     private val requestJournalStore: RequestJournalStore = InMemoryRequestJournalStore()

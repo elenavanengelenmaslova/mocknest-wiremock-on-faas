@@ -2,6 +2,7 @@ package com.example.clean.architecture.service
 
 import com.example.clean.architecture.model.HttpRequest
 import com.example.clean.architecture.model.HttpResponse
+import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.github.tomakehurst.wiremock.store.BlobStore
 import com.github.tomakehurst.wiremock.WireMockServer
 import com.github.tomakehurst.wiremock.common.InvalidInputException
@@ -17,7 +18,7 @@ import wiremock.org.apache.hc.core5.http.ContentType
 import java.util.*
 
 private val logger = KotlinLogging.logger {}
-
+val mapper = jacksonObjectMapper()
 @Component
 class AdminForwarder(
     private val wireMockServer: WireMockServer,
@@ -25,7 +26,7 @@ class AdminForwarder(
 ) : HandleAdminRequest {
 
     internal fun normalizeMappingToBodyFile(mappingJson: String): String {
-        val mapper = com.fasterxml.jackson.module.kotlin.jacksonObjectMapper()
+
         val root = mapper.readTree(mappingJson) as com.fasterxml.jackson.databind.node.ObjectNode
         // Get or create response without overwriting existing one
         val response = (root.get("response") as? com.fasterxml.jackson.databind.node.ObjectNode)

@@ -68,16 +68,35 @@ class ObjectStorageMappingsSource(
         }
     }
 
-    // Loader-only: persistence is handled by StubMappingStore. Avoid duplicate saves.
-    override fun save(mapping: StubMapping) { /* no-op */
+    // Persist mappings directly to object storage under the configured prefix
+    override fun save(mapping: StubMapping) {
+        val id = mapping.id
+        val key = "$prefix$id.json"
+        runCatching {
+            storage.save(key, Json.write(mapping))
+        }.onFailure { e ->
+            logger.error(e) { "Failed to save mapping ${'$'}id to ${'$'}key" }
+        }
     }
 
-    override fun save(mappings: List<StubMapping>) { /* no-op */
+    override fun save(mappings: List<StubMapping>) {
+        mappings.forEach { save(it) }
     }
 
-    override fun remove(mapping: StubMapping) { /* no-op */
+    override fun remove(mapping: StubMapping) {
+        val id = mapping.id
+        val key = "$prefix$id.json"
+        runCatching { storage.delete(key) }
+            .onFailure { e -> logger.error(e) { "Failed to delete mapping ${'$'}id at ${'$'}key" } }
     }
 
-    override fun removeAll() { /* no-op */
+    override fun removeAll() {
+        runCatching { storage.listPrefix(prefix) }
+            .onFailure { e -> logger.error(e) { "Failed to list mappings for removeAll with prefix '${'$'}prefix'" } }
+            .getOrDefault(emptyList())
+            .forEach { key ->
+                runCatching { storage.delete(key) }
+                    .onFailure { e -> logger.error(e) { "Failed to delete mapping key ${'$'}key" } }
+            }
     }
 }
