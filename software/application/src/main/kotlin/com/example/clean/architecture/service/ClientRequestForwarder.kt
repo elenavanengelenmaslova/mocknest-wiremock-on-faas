@@ -16,7 +16,6 @@ import kotlin.text.Charsets.UTF_8
 import com.github.tomakehurst.wiremock.http.HttpHeaders as WireMockHttpHeaders
 
 private val logger = KotlinLogging.logger {}
-private const val BASE_URL = "http://mocknest.internal"
 
 @Component
 class ClientRequestForwarder(private val directCallHttpServer: DirectCallHttpServer) :
