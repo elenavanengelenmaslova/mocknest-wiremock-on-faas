@@ -59,7 +59,7 @@ class MockNestFunctionsIntegrationTest {
     }
 
     @Test
-    fun `When retrieving near misses then returns 200 status code`() {
+    fun `When retrieving near misses Then returns 200 status code`() {
         every { request.httpMethod } returns HttpMethod.GET
 
         mockNestFunctions.forwardAdminRequest(
@@ -79,7 +79,7 @@ class MockNestFunctionsIntegrationTest {
     }
 
     @Test
-    fun `When resetting MockNest mappings then returns 200 status code`() {
+    fun `When resetting MockNest mappings Then returns 200 status code`() {
         every { request.httpMethod } returns HttpMethod.POST
 
         mockNestFunctions.forwardAdminRequest(
@@ -99,7 +99,7 @@ class MockNestFunctionsIntegrationTest {
     }
 
     @Test
-    fun `When retrieving all mappings then returns 200 status code`() {
+    fun `When retrieving all mappings Then returns 200 status code`() {
         every { request.httpMethod } returns HttpMethod.GET
 
         mockNestFunctions.forwardAdminRequest(
@@ -114,7 +114,7 @@ class MockNestFunctionsIntegrationTest {
     }
 
     @Test
-    fun `When retrieving all requests then returns 200 status code`() {
+    fun `When retrieving all requests Then returns 200 status code`() {
         every { request.httpMethod } returns HttpMethod.GET
 
         mockNestFunctions.forwardAdminRequest(
@@ -129,7 +129,7 @@ class MockNestFunctionsIntegrationTest {
     }
 
     @Test
-    fun `When clearing request journal then returns 200 status code`() {
+    fun `When clearing request journal Then returns 200 status code`() {
         every { request.httpMethod } returns HttpMethod.DELETE
 
         mockNestFunctions.forwardAdminRequest(
@@ -144,7 +144,7 @@ class MockNestFunctionsIntegrationTest {
     }
 
     @Test
-    fun `When retrieving unmatched requests then returns 200 status code`() {
+    fun `When retrieving unmatched requests Then returns 200 status code`() {
         every { request.httpMethod } returns HttpMethod.GET
 
         mockNestFunctions.forwardAdminRequest(
