@@ -257,9 +257,9 @@ class AdminForwarder(
         logger.info { "Calling wiremock admin with request: ${httpRequest.method} ${httpRequest.path}" }
 
         // Call stubRequest on the DirectCallHttpServer
-        val response = directCallHttpServer.stubRequest(wireMockRequest)
+        val response = directCallHttpServer.adminRequest(wireMockRequest)
 
-        logger.info { "Wiremock response: ${response.bodyAsString}, code: ${response.status}" }
+        logger.info { "Wiremock admin response: ${response.bodyAsString}, code: ${response.status}" }
         val contentType =
             if (response.headers.contentTypeHeader.isPresent) response.headers.contentTypeHeader.firstValue()
             else ContentType.APPLICATION_JSON.toString()
