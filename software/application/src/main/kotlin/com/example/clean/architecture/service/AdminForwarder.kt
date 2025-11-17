@@ -94,12 +94,11 @@ class AdminForwarder(
             // DELETE /__admin/mappings -> delete all mappings and purge files
             path == "mappings" && httpRequest.method == HttpMethod.DELETE -> {
                 logger.info { "Deleting all WireMock stub mappings and files" }
-                wireMockServer.runCatching {
-                    // Clear all stubs (and other ephemeral state) then purge files
-                    resetAll()
-                    filesStore.clear()
-                    HttpResponse(HttpStatusCode.valueOf(200), body = "All stub mappings and files deleted successfully")
-                }.getOrElse { handleAdminException(it) }
+                forwardToDirectCallHttpServer("admin", httpRequest) { httpRequest ->
+                    directCallHttpServer.adminRequest(
+                        httpRequest
+                    )
+                }
             }
 
             // GET /__admin/files -> list all file keys
@@ -119,10 +118,11 @@ class AdminForwarder(
             // DELETE /__admin/files -> purge all files under __files/
             path == "files" && httpRequest.method == HttpMethod.DELETE -> {
                 logger.info { "Deleting all files under __files/" }
-                runCatching {
-                    filesStore.clear()
-                    HttpResponse(HttpStatusCode.valueOf(200), body = "All files deleted successfully")
-                }.getOrElse { handleAdminException(it) }
+                forwardToDirectCallHttpServer("admin", httpRequest) { httpRequest ->
+                    directCallHttpServer.adminRequest(
+                        httpRequest
+                    )
+                }
             }
 
             // DELETE /__admin/files/{relativePath}

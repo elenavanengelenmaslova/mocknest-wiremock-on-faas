@@ -29,7 +29,7 @@ fun interface HandleAdminRequest {
 
 
 fun forwardToDirectCallHttpServer(typeCall: String, httpRequest: HttpRequest, directCall: (ImmutableRequest) -> Response): HttpResponse {
-    logger.info { "Forwarding $typeCall request body: ${httpRequest.body} to path: ${httpRequest.path}" }
+    logger.info { "Forwarding $typeCall request with path: ${httpRequest.path}" }
 
     val queryString = httpRequest.queryParameters.entries
         .joinToString("&") { (key, value) ->
@@ -64,7 +64,7 @@ fun forwardToDirectCallHttpServer(typeCall: String, httpRequest: HttpRequest, di
     // Call stubRequest on the DirectCallHttpServer
     val response = directCall(wireMockRequest)
 
-    logger.info { "Wiremock $typeCall response: ${response.bodyAsString}, code: ${response.status}" }
+    logger.info { "Wiremock $typeCall response code: ${response.status}" }
     val contentType =
         if (response.headers.contentTypeHeader.isPresent) response.headers.contentTypeHeader.firstValue()
         else ContentType.APPLICATION_JSON.toString()
