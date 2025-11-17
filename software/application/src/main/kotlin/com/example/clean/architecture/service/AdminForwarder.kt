@@ -74,6 +74,7 @@ class AdminForwarder(
                     directCallHttpServer.adminRequest(
                         httpRequest
                     )
+
                 }
             }
 
@@ -94,11 +95,16 @@ class AdminForwarder(
             // DELETE /__admin/mappings -> delete all mappings and purge files
             path == "mappings" && httpRequest.method == HttpMethod.DELETE -> {
                 logger.info { "Deleting all WireMock stub mappings and files" }
-                forwardToDirectCallHttpServer("admin", httpRequest) { httpRequest ->
+                val response = forwardToDirectCallHttpServer("admin", httpRequest) { httpRequest ->
                     directCallHttpServer.adminRequest(
                         httpRequest
                     )
                 }
+                // reset from local
+                wireMockServer.runCatching {
+                    resetRequests()
+                }.onFailure { logger.error { "Unable to reset mappings: $it" } }
+                response
             }
 
             // GET /__admin/files -> list all file keys
