@@ -239,7 +239,7 @@ class AdminForwarder(
         // Create a WireMock request using the WireMock client
         val wireMockRequest =
             ImmutableRequest.create()
-                .withAbsoluteUrl("$BASE_URL/$ADMIN_PREFIX/$path$queryString")
+                .withAbsoluteUrl("$BASE_URL/$path$queryString")
                 .withMethod(
                     RequestMethod.fromString(
                         httpRequest.method.name()
