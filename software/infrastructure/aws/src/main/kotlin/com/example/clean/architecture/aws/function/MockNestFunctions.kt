@@ -4,8 +4,10 @@ import com.amazonaws.services.lambda.runtime.events.APIGatewayProxyRequestEvent
 import com.amazonaws.services.lambda.runtime.events.APIGatewayProxyResponseEvent
 import com.example.clean.architecture.model.HttpRequest
 import com.example.clean.architecture.model.HttpResponse
+import com.example.clean.architecture.service.ADMIN_PREFIX
 import com.example.clean.architecture.service.HandleAdminRequest
 import com.example.clean.architecture.service.HandleClientRequest
+import com.example.clean.architecture.service.MOCKNEST_PREFIX
 import io.github.oshai.kotlinlogging.KotlinLogging
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
@@ -14,8 +16,6 @@ import org.springframework.http.HttpStatus
 import java.util.function.Function
 
 private val logger = KotlinLogging.logger {}
-private const val ADMIN_PREFIX = "/__admin/"
-private const val MOCKNEST_PREFIX = "/mocknest/"
 
 @Configuration
 class MockNestFunctions(

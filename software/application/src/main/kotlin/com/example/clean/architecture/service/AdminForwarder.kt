@@ -3,16 +3,15 @@ package com.example.clean.architecture.service
 import com.example.clean.architecture.model.HttpRequest
 import com.example.clean.architecture.model.HttpResponse
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
-import com.github.tomakehurst.wiremock.store.BlobStore
 import com.github.tomakehurst.wiremock.WireMockServer
 import com.github.tomakehurst.wiremock.common.InvalidInputException
 import com.github.tomakehurst.wiremock.common.Json
 import com.github.tomakehurst.wiremock.direct.DirectCallHttpServer
 import com.github.tomakehurst.wiremock.http.HttpHeader
-import com.github.tomakehurst.wiremock.http.HttpHeaders as WireMockHttpHeaders
 import com.github.tomakehurst.wiremock.http.ImmutableRequest
 import com.github.tomakehurst.wiremock.http.RequestMethod
 import com.github.tomakehurst.wiremock.matching.RequestPattern
+import com.github.tomakehurst.wiremock.store.BlobStore
 import com.github.tomakehurst.wiremock.stubbing.StubMapping
 import io.github.oshai.kotlinlogging.KotlinLogging
 import org.springframework.http.HttpHeaders
@@ -22,12 +21,12 @@ import org.springframework.stereotype.Component
 import wiremock.org.apache.hc.core5.http.ContentType
 import java.net.URLEncoder
 import java.util.*
-import kotlin.collections.component1
-import kotlin.collections.component2
 import kotlin.text.Charsets.UTF_8
+import com.github.tomakehurst.wiremock.http.HttpHeaders as WireMockHttpHeaders
 
 private val logger = KotlinLogging.logger {}
 val mapper = jacksonObjectMapper()
+
 @Component
 class AdminForwarder(
     private val wireMockServer: WireMockServer,
@@ -224,7 +223,7 @@ class AdminForwarder(
     }
 
 
-    private fun forwardToAdmin(httpRequest: HttpRequest): HttpResponse{
+    private fun forwardToAdmin(httpRequest: HttpRequest): HttpResponse {
         logger.info { "Forwarding admin request body: ${httpRequest.body} to path: ${httpRequest.path}" }
 
         val queryString = httpRequest.queryParameters.entries
@@ -240,7 +239,7 @@ class AdminForwarder(
         // Create a WireMock request using the WireMock client
         val wireMockRequest =
             ImmutableRequest.create()
-                .withAbsoluteUrl("$BASE_URL/$path$queryString")
+                .withAbsoluteUrl("$BASE_URL/$ADMIN_PREFIX/$path$queryString")
                 .withMethod(
                     RequestMethod.fromString(
                         httpRequest.method.name()
@@ -255,7 +254,7 @@ class AdminForwarder(
                 .withBody(httpRequest.body?.toString().orEmpty().toByteArray())
                 .build()
 
-        logger.info { "Calling wiremock with request: ${httpRequest.method} ${httpRequest.path}" }
+        logger.info { "Calling wiremock admin with request: ${httpRequest.method} ${httpRequest.path}" }
 
         // Call stubRequest on the DirectCallHttpServer
         val response = directCallHttpServer.stubRequest(wireMockRequest)
@@ -308,7 +307,7 @@ class AdminForwarder(
             filesStore.put(fileName, bytes)
         } else {
             val text = bodyNode.asText()
-            filesStore.put(fileName, text.toByteArray(Charsets.UTF_8))
+            filesStore.put(fileName, text.toByteArray(UTF_8))
         }
 
         // Get or create headers without overwriting existing headers
