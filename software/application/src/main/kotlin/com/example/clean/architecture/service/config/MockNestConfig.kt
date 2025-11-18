@@ -38,10 +38,8 @@ class MockNestConfig {
     ): WireMockServer {
         val config = wireMockConfig()
             // Keep classpath root for any built-in defaults (optional)
-            //.usingFilesUnderClasspath(rootDir)
             .notifier(ConsoleNotifier(true))
             .httpServerFactory(directCallHttpServerFactory)
-            .disableRequestJournal()
             .withStores(ObjectStorageWireMockStores(storage))
             .mappingSource(CompositeMappingsSource(ObjectStorageMappingsSource(storage), rootDir))
 
