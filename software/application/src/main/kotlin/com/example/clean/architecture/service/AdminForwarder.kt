@@ -7,15 +7,12 @@ import com.github.tomakehurst.wiremock.WireMockServer
 import com.github.tomakehurst.wiremock.common.InvalidInputException
 import com.github.tomakehurst.wiremock.common.Json
 import com.github.tomakehurst.wiremock.direct.DirectCallHttpServer
-import com.github.tomakehurst.wiremock.matching.RequestPattern
 import com.github.tomakehurst.wiremock.store.BlobStore
 import com.github.tomakehurst.wiremock.stubbing.StubMapping
 import io.github.oshai.kotlinlogging.KotlinLogging
-import org.springframework.http.HttpHeaders
 import org.springframework.http.HttpMethod
 import org.springframework.http.HttpStatusCode
 import org.springframework.stereotype.Component
-import wiremock.org.apache.hc.core5.http.ContentType
 import java.util.*
 import kotlin.text.Charsets.UTF_8
 
@@ -33,60 +30,18 @@ class AdminForwarder(
         path: String,
         httpRequest: HttpRequest,
     ): HttpResponse {
-        val contentType = ContentType.APPLICATION_JSON.toString()
         return when {
-            path == "requests/unmatched/near-misses" && httpRequest.method == HttpMethod.GET -> {
-                logger.info { "Retrieving near misses" }
-                wireMockServer.runCatching {
-                    val mappings = Json.getObjectMapper().writeValueAsString(findNearMissesForUnmatchedRequests())
-                    HttpResponse(
-                        HttpStatusCode.valueOf(200),
-                        HttpHeaders().apply { add(HttpHeaders.CONTENT_TYPE, contentType) },
-                        body = mappings
-                    )
-                }.getOrElse {
-                    // If request journal is disabled, return 200 with empty near-misses to satisfy tests
-                    if (it is com.github.tomakehurst.wiremock.verification.RequestJournalDisabledException) {
-                        HttpResponse(
-                            HttpStatusCode.valueOf(200),
-                            HttpHeaders().apply { add(HttpHeaders.CONTENT_TYPE, contentType) },
-                            body = "[]"
-                        )
-                    } else handleAdminException(it)
-                }
-            }
-
-            path == "mappings/reset" && httpRequest.method == HttpMethod.POST -> {
-                logger.info { "Resetting WireMock mappings" }
-                wireMockServer.runCatching {
-                    resetToDefaultMappings()
-                    HttpResponse(HttpStatusCode.valueOf(200), body = "Mappings reset successfully")
-                }.getOrElse { handleAdminException(it) }
-            }
-
-            path == "requests" && httpRequest.method == HttpMethod.GET -> {
-                handleGetAllRequests(contentType)
-            }
-
-            path == "mappings" && httpRequest.method == HttpMethod.GET -> {
-                logger.info { "Retrieving all WireMock stub mappings" }
-                forwardToDirectCallHttpServer("admin", httpRequest) { httpRequest ->
-                    directCallHttpServer.adminRequest(
-                        httpRequest
-                    )
-
-                }
-            }
-
-            path == "mappings" && httpRequest.method == HttpMethod.POST -> {
+            // Normalize body to __files
+            path == "mappings" && httpRequest.method in listOf(HttpMethod.POST, HttpMethod.PUT) -> {
                 logger.info { "Creating new WireMock stub mapping" }
                 wireMockServer.runCatching {
                     val addedMapping = httpRequest.body?.let { body ->
                         val bodyString = body.toString()
                         val normalized = normalizeMappingToBodyFile(bodyString)
                         val mapping = normalized.toStubMapping()
-                        addStubMapping(mapping)
-                        "Mapping ${mapping.id} added"
+                        if (httpRequest.method == HttpMethod.POST) addStubMapping(mapping)
+                        else editStubMapping(mapping)
+                        "Mapping ${mapping.id} saved"
                     }
                     HttpResponse(httpStatusCode = HttpStatusCode.valueOf(201), body = addedMapping)
                 }.getOrElse { handleAdminException(it) }
@@ -100,121 +55,22 @@ class AdminForwarder(
                         httpRequest
                     )
                 }
-                // reset from local
+                // reset from local file system
                 wireMockServer.runCatching {
                     resetRequests()
                 }.onFailure { logger.error { "Unable to reset mappings: $it" } }
                 response
             }
 
-            // GET /__admin/files -> list all file keys
-            path == "files" && httpRequest.method == HttpMethod.GET -> {
-                logger.info { "Listing all files under __files/" }
-                runCatching {
-                    val keys = filesStore.getAllKeys().toList()
-                    val result = Json.getObjectMapper().writeValueAsString(keys)
-                    HttpResponse(
-                        HttpStatusCode.valueOf(200),
-                        HttpHeaders().apply { add(HttpHeaders.CONTENT_TYPE, contentType) },
-                        body = result
-                    )
-                }.getOrElse { handleAdminException(it) }
-            }
-
-            // DELETE /__admin/files -> purge all files under __files/
-            path == "files" && httpRequest.method == HttpMethod.DELETE -> {
-                logger.info { "Deleting all files under __files/" }
+            else -> {
+                logger.info { "Handling admin request ${httpRequest.method} ${httpRequest.path} " }
                 forwardToDirectCallHttpServer("admin", httpRequest) { httpRequest ->
                     directCallHttpServer.adminRequest(
                         httpRequest
                     )
                 }
             }
-
-            // DELETE /__admin/files/{relativePath}
-            path.startsWith("files/") && httpRequest.method == HttpMethod.DELETE -> {
-                val fileKey = path.removePrefix("files/")
-                logger.info { "Deleting file under __files/: $fileKey" }
-                runCatching {
-                    filesStore.remove(fileKey)
-                    HttpResponse(HttpStatusCode.valueOf(200), body = "File '$fileKey' deleted successfully")
-                }.getOrElse { handleAdminException(it) }
-            }
-
-            path == "requests" && httpRequest.method == HttpMethod.DELETE -> {
-                logger.info { "Clearing request journal" }
-                wireMockServer.runCatching {
-                    resetRequests()
-                    HttpResponse(HttpStatusCode.valueOf(200), body = "Requests reset successfully")
-                }.getOrElse { handleAdminException(it) }
-            }
-
-            path == "requests/unmatched" && httpRequest.method == HttpMethod.GET -> {
-                logger.info { "Retrieving unmatched requests" }
-                wireMockServer.runCatching {
-                    val result = Json.getObjectMapper().writeValueAsString(findUnmatchedRequests())
-                    HttpResponse(
-                        HttpStatusCode.valueOf(200),
-                        HttpHeaders().apply { add(HttpHeaders.CONTENT_TYPE, contentType) },
-                        body = result
-                    )
-                }.getOrElse { handleAdminException(it) }
-            }
-
-            path.startsWith("mappings/") -> {
-                val mappingIdAsString = path.removePrefix("mappings/")
-                val mappingId = UUID.fromString(mappingIdAsString)
-                when (httpRequest.method) {
-                    HttpMethod.GET -> {
-                        logger.info { "Retrieving WireMock mapping with ID: $mappingId" }
-                        HttpResponse(HttpStatusCode.valueOf(200), body = wireMockServer.getStubMapping(mappingId))
-                    }
-
-                    HttpMethod.PUT -> {
-                        logger.info { "Updating WireMock mapping with ID: $mappingId" }
-                        val updatedMapping = httpRequest.body?.let { body ->
-                            val bodyString = body.toString()
-                            val normalized = normalizeMappingToBodyFile(bodyString)
-                            val mapping = normalized.toStubMapping()
-                            wireMockServer.editStubMapping(mapping)
-                            "Mapping ${'$'}{mapping.id} updated"
-                        }
-                        HttpResponse(HttpStatusCode.valueOf(200), body = updatedMapping)
-                    }
-
-                    HttpMethod.DELETE -> {
-                        logger.info { "Deleting WireMock mapping with ID: $mappingId" }
-                        wireMockServer.removeStubMapping(mappingId)
-                        HttpResponse(HttpStatusCode.valueOf(200), body = "Stub mapping deleted successfully")
-                    }
-
-                    else -> {
-                        logger.warn { "Unsupported method for admin request: ${httpRequest.method}" }
-                        HttpResponse(HttpStatusCode.valueOf(405), body = "Method not allowed")
-                    }
-                }
-            }
-
-            else -> {
-                logger.warn { "Unknown WireMock admin API request: $path" }
-                HttpResponse(
-                    HttpStatusCode.valueOf(404), body = "Unknown admin request: $path"
-                )
-            }
         }
-    }
-
-    private fun handleGetAllRequests(contentType: String): HttpResponse {
-        logger.info { "Get all requests in journal" }
-        return wireMockServer.runCatching {
-            val result =
-                Json.getObjectMapper().writeValueAsString(findRequestsMatching(RequestPattern.ANYTHING))
-            HttpResponse(
-                HttpStatusCode.valueOf(200),
-                HttpHeaders().apply { add(HttpHeaders.CONTENT_TYPE, contentType) },
-                body = result
-            )
-        }.getOrElse { handleAdminException(it) }
     }
 
     private fun handleAdminException(exception: Throwable) = when (exception) {

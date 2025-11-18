@@ -39,12 +39,32 @@ class MockNestFunctionsIntegrationTest {
     }
 
     @Test
-    fun `When deleting a MockNest mapping Then returns 200 status code`() {
+    fun `When deleting a non existent MockNest mapping Then returns 404 status code`() {
         every { request.httpMethod } returns HttpMethod.DELETE
 
         mockNestFunctions.forwardAdminRequest(
             request,
             "mappings/8c5db8b0-2db4-4ad7-a99f-38c9b00da3f7",
+            context
+        )
+
+        verify {
+            request
+                .createResponseBuilder(
+                    HttpStatus.valueOf(
+                        404
+                    )
+                )
+        }
+    }
+
+    @Test
+    fun `When deleting an existent MockNest mapping Then returns 200 status code`() {
+        every { request.httpMethod } returns HttpMethod.DELETE
+
+        mockNestFunctions.forwardAdminRequest(
+            request,
+            "mappings/76ada7b0-55ae-4229-91c4-396a36f19999",
             context
         )
 
