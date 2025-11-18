@@ -1,6 +1,5 @@
 package com.example.clean.architecture.service
 
-import com.example.clean.architecture.service.config.MockNestConfig
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.github.tomakehurst.wiremock.WireMockServer
 import com.github.tomakehurst.wiremock.common.InputStreamSource
@@ -8,14 +7,12 @@ import com.github.tomakehurst.wiremock.direct.DirectCallHttpServer
 import com.github.tomakehurst.wiremock.store.BlobStore
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.BeforeEach
-import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.Test
 import java.io.ByteArrayInputStream
 import java.io.InputStream
 import java.util.*
 import java.util.stream.Stream
 
-@Disabled("WIP")
 class AdminForwarderNormalizeMappingTest {
 
     private lateinit var directCallHttpServer: DirectCallHttpServer
@@ -25,11 +22,9 @@ class AdminForwarderNormalizeMappingTest {
 
     @BeforeEach
     internal fun setUp() {
-        val server = WireMockServer() // not started; we don't use it in normalize
-        val blobStore = InMemoryBlobStore()
-        val config = MockNestConfig()
-        val factory = config.directCallHttpServerFactory()
-        directCallHttpServer = config.directCallHttpServer(factory)
+        server = WireMockServer() // not started; not used by normalize
+        blobStore = InMemoryBlobStore()
+        directCallHttpServer = io.mockk.mockk(relaxed = true)
         adminForwarder = AdminForwarder(server, blobStore, directCallHttpServer)
     }
 
