@@ -5,6 +5,9 @@ import com.github.tomakehurst.wiremock.WireMockServer
 import com.github.tomakehurst.wiremock.common.InputStreamSource
 import com.github.tomakehurst.wiremock.direct.DirectCallHttpServer
 import com.github.tomakehurst.wiremock.store.BlobStore
+import io.mockk.clearAllMocks
+import io.mockk.mockk
+import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -15,7 +18,7 @@ import java.util.stream.Stream
 
 class AdminForwarderNormalizeMappingTest {
 
-    private lateinit var directCallHttpServer: DirectCallHttpServer
+    private val directCallHttpServer: DirectCallHttpServer = mockk(relaxed = true)
     private lateinit var server: WireMockServer
     private lateinit var blobStore: InMemoryBlobStore
     private lateinit var adminForwarder: AdminForwarder
@@ -24,8 +27,12 @@ class AdminForwarderNormalizeMappingTest {
     internal fun setUp() {
         server = WireMockServer() // not started; not used by normalize
         blobStore = InMemoryBlobStore()
-        directCallHttpServer = io.mockk.mockk(relaxed = true)
         adminForwarder = AdminForwarder(server, blobStore, directCallHttpServer)
+    }
+
+    @AfterEach
+    internal fun tearDown() {
+        clearAllMocks()
     }
 
     @Test
@@ -113,6 +120,7 @@ class AdminForwarderNormalizeMappingTest {
         assertEquals(mappingJson, result)
         assertTrue(blobStore.map.isEmpty())
     }
+
     private class InMemoryBlobStore : BlobStore {
         val map: MutableMap<String, ByteArray> = LinkedHashMap()
 
