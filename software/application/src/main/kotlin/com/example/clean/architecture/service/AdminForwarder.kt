@@ -55,8 +55,9 @@ class AdminForwarder(
                         httpRequest
                     )
                 }
-                // reset from local file system
+                // remove __files and reset from mappings from local file system
                 wireMockServer.runCatching {
+                    filesStore.clear()
                     resetRequests()
                 }.onFailure { logger.error { "Unable to reset mappings: $it" } }
                 response
