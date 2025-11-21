@@ -13,8 +13,8 @@ dependencies {
     implementation(project(":domain"))
     implementation(project(":application"))
     // https://mvnrepository.com/artifact/org.springframework.cloud/spring-cloud-function-adapter-aws
-    implementation("org.springframework.cloud:spring-cloud-function-adapter-aws:4.2.2")
-    implementation("org.springframework.cloud:spring-cloud-function-kotlin:4.2.2")
+    implementation("org.springframework.cloud:spring-cloud-function-adapter-aws:4.3.0")
+    implementation("org.springframework.cloud:spring-cloud-function-kotlin:4.3.0")
     implementation("org.springframework.boot:spring-boot-starter")
     implementation("aws.sdk.kotlin:s3-jvm:$smithyKotlinVersion")
     implementation("aws.smithy.kotlin:http-client-engine-okhttp:$smithyKotlinVersion")
