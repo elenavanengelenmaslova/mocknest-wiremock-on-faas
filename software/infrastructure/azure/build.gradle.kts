@@ -9,17 +9,21 @@ plugins {
 group = "com.example"
 version = "0.0.1-SNAPSHOT"
 
-extra["springCloudVersion"] = "2023.0.5"
+extra["springCloudVersion"] = "2025.0.0"
 
 dependencies {
+    // Gradle-native BOM imports to manage versions
+    implementation(platform("org.springframework.cloud:spring-cloud-dependencies:${property("springCloudVersion")}"))
+    implementation(platform("com.azure:azure-sdk-bom:1.3.2"))
+
     implementation(project(":domain"))
     implementation(project(":application"))
     implementation("org.jetbrains.kotlin:kotlin-reflect")
     implementation("org.springframework.boot:spring-boot-starter-web")
     implementation("org.springframework.cloud:spring-cloud-function-context")
-    implementation("org.springframework.cloud:spring-cloud-function-adapter-azure:4.2.2")
-    implementation("com.azure:azure-identity:1.15.4")
-    implementation("com.azure:azure-storage-blob:12.25.1")
+    implementation("org.springframework.cloud:spring-cloud-function-adapter-azure")
+    implementation("com.azure:azure-identity")
+    implementation("com.azure:azure-storage-blob")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.2")
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testImplementation("io.mockk:mockk:1.13.8")
@@ -28,17 +32,6 @@ dependencies {
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 
-dependencyManagement {
-    imports {
-        mavenBom(
-            "org.springframework.cloud:spring-cloud-dependencies:${
-                property(
-                    "springCloudVersion"
-                )
-            }"
-        )
-    }
-}
 
 tasks.withType<KotlinCompile> {
     compilerOptions {

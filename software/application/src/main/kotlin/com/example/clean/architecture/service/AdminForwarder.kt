@@ -58,7 +58,7 @@ class AdminForwarder(
                 // remove __files and reset from mappings from local file system
                 wireMockServer.runCatching {
                     filesStore.clear()
-                    resetRequests()
+                    resetAll()
                 }.onFailure { logger.error { "Unable to reset mappings: $it" } }
                 response
             }
@@ -88,11 +88,11 @@ class AdminForwarder(
 
         val root = mapper.readTree(mappingJson) as com.fasterxml.jackson.databind.node.ObjectNode
         // Get or create response without overwriting existing one
-        val response = (root.get("response") as? com.fasterxml.jackson.databind.node.ObjectNode)
+        val response = (root["response"] as? com.fasterxml.jackson.databind.node.ObjectNode)
             ?: root.putObject("response")
 
         // If already bodyFileName, nothing to do
-        if (response.has("bodyFileName")) return mappingJson
+        if (response.has("bodyFileName") || root["persistent"]?.toString()?.lowercase() != "true") return mappingJson
 
         val bodyNode = response.remove("body")
         val base64Node = response.remove("base64Body")
@@ -100,7 +100,7 @@ class AdminForwarder(
         if (bodyNode == null && base64Node == null) return mappingJson
 
         // Ensure mapping has an id to derive file name
-        val mappingId = root.get("id")?.asText() ?: UUID.randomUUID().toString().also { root.put("id", it) }
+        val mappingId = root["id"]?.asText() ?: UUID.randomUUID().toString().also { root.put("id", it) }
         val isBinary = base64Node != null
         val fileName = mappingId + if (isBinary) ".bin" else ".json"
 
@@ -114,7 +114,7 @@ class AdminForwarder(
         }
 
         // Get or create headers without overwriting existing headers
-        val headers = (response.get("headers") as? com.fasterxml.jackson.databind.node.ObjectNode)
+        val headers = (response["headers"] as? com.fasterxml.jackson.databind.node.ObjectNode)
             ?: response.putObject("headers")
 
         // Only set default Content-Type when it's missing
