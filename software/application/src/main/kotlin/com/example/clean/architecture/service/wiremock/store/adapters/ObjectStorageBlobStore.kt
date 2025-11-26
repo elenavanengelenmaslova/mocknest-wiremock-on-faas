@@ -71,7 +71,8 @@ class ObjectStorageBlobStore(
 
     override fun clear() {
         runBlocking {
-            storage.listPrefix(prefix).collect { storage.delete(it) }
+            // Use bulk delete for efficiency
+            storage.deleteMany(storage.listPrefix(prefix))
         }
     }
 }
