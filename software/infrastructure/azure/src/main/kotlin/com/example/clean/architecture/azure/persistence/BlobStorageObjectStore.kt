@@ -97,8 +97,10 @@ class BlobStorageObjectStore(
             .flatMapMerge(concurrency) { batch ->
                 flow {
                     val urls = batch.map { key ->
+                        logger.info { "Getting URL with key: $key" }
                         containerClient.getBlobAsyncClient(key.trimStart('/')).blobUrl
                     }
+                    logger.info { "Deleting blobs for $urls" }
                     batchClient.deleteBlobs(urls, DeleteSnapshotsOptionType.INCLUDE)
                         .then() // Mono<Void>
                         .awaitFirstOrNull()
