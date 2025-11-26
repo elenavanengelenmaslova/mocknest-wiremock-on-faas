@@ -1,11 +1,19 @@
 package com.example.clean.architecture.azure
 
 
-import com.azure.core.http.rest.PagedIterable
-import com.azure.storage.blob.BlobClient
-import com.azure.storage.blob.BlobContainerClient
+import com.azure.core.http.HttpHeaders
+import com.azure.core.http.HttpRequest
+import com.azure.core.http.rest.*
+import com.azure.core.util.BinaryData
+import com.azure.storage.blob.BlobAsyncClient
+import com.azure.storage.blob.BlobContainerAsyncClient
+import com.azure.storage.blob.batch.BlobBatchAsyncClient
 import com.azure.storage.blob.models.BlobItem
-import com.example.clean.architecture.test.config.LocalTestConfiguration
+import com.azure.storage.blob.models.BlockBlobItem
+import com.azure.storage.blob.models.DeleteSnapshotsOptionType
+import com.azure.storage.blob.models.ListBlobsOptions
+import com.example.clean.architecture.persistence.ObjectStorageInterface
+import com.example.clean.architecture.test.config.AzureLocalTestConfiguration
 import com.github.tomakehurst.wiremock.WireMockServer
 import com.microsoft.azure.functions.ExecutionContext
 import com.microsoft.azure.functions.HttpMethod
@@ -14,6 +22,8 @@ import com.microsoft.azure.functions.HttpStatus
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
+import kotlinx.coroutines.flow.toList
+import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
@@ -21,23 +31,29 @@ import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.context.annotation.Import
 import org.springframework.test.context.ActiveProfiles
-import java.io.ByteArrayInputStream
+import reactor.core.publisher.Mono
+import java.util.concurrent.ConcurrentHashMap
 import kotlin.test.Test
+import com.azure.core.http.HttpMethod as AzureHttpMethod
 
 @SpringBootTest
 @ActiveProfiles("local")
-@Import(LocalTestConfiguration::class)
+@Import(AzureLocalTestConfiguration::class)
 class MockNestFunctionsIntegrationTest {
 
     @Autowired
     private lateinit var mockNestFunctions: MockNestFunctions
     @Autowired
-    private lateinit var blobContainerClient: BlobContainerClient
+    private lateinit var storage: ObjectStorageInterface
     @Autowired
     private lateinit var wireMockServer: WireMockServer
+    @Autowired
+    private lateinit var container: BlobContainerAsyncClient
+    @Autowired
+    private lateinit var batch: BlobBatchAsyncClient
 
-    private val blobsList: PagedIterable<BlobItem> = mockk(relaxed = true)
-    private val blobClient: BlobClient = mockk(relaxed = true)
+    private val store = ConcurrentHashMap<String, String>()
+    private val containerUrl = "https://test.blob.core.windows.net/test-container"
 
     private val context = mockk<ExecutionContext>()
     val request =
@@ -46,6 +62,76 @@ class MockNestFunctionsIntegrationTest {
     @BeforeEach
     fun setup() {
         wireMockServer.resetAll()
+        // Set container expectations per test run
+        every { container.blobContainerUrl } returns containerUrl
+        every { container.getBlobAsyncClient(any()) } answers {
+            val name = arg<String>(0)
+            mockBlobAsyncClient(name)
+        }
+        every { container.listBlobs() } answers { pagedFluxFor(store.keys.map { it }) }
+        every { container.listBlobs(any<ListBlobsOptions>()) } answers {
+            val options = arg<ListBlobsOptions>(0)
+            val prefix = options.prefix ?: ""
+            pagedFluxFor(store.keys.filter { it.startsWith(prefix) })
+        }
+        every { batch.deleteBlobs(any<List<String>>(), any<DeleteSnapshotsOptionType>()) } answers {
+            val urls = arg<List<String>>(0)
+            urls.forEach { url ->
+                val key = url.removePrefix("$containerUrl/")
+                store.remove(key)
+            }
+            val req = HttpRequest(AzureHttpMethod.DELETE, containerUrl)
+            val headers = HttpHeaders()
+            val responses = urls.map { SimpleResponse<Void>(req, 202, headers, null) as Response<Void> }
+            val page: Mono<PagedResponse<Response<Void>>> = Mono.just(
+                PagedResponseBase(req, 202, headers, responses, null, null)
+            )
+            PagedFlux({ page }, { _: String -> Mono.empty() })
+        }
+
+        // Clear storage before each test
+        runBlocking {
+            storage.list().toList().forEach { storage.delete(it) }
+        }
+    }
+
+    private fun mockBlobAsyncClient(name: String): BlobAsyncClient {
+        val blob = mockk<BlobAsyncClient>(relaxed = true)
+        every { blob.blobUrl } returns "$containerUrl/$name"
+        every { blob.exists() } answers { Mono.just(store.containsKey(name)) }
+        every { blob.upload(any<BinaryData>(), any()) } answers {
+            val data = arg<BinaryData>(0)
+            store[name] = data.toString()
+            Mono.just(mockk<BlockBlobItem>(relaxed = true))
+        }
+        every { blob.downloadContent() } answers {
+            val value = store[name] ?: return@answers Mono.empty()
+            Mono.just(BinaryData.fromString(value))
+        }
+        every { blob.delete() } answers {
+            store.remove(name)
+            Mono.empty<Void>()
+        }
+        return blob
+    }
+
+    private fun pagedFluxFor(keys: List<String>): PagedFlux<BlobItem> {
+        val items = keys.map { key ->
+            val item = mockk<BlobItem>(relaxed = true)
+            every { item.name } returns key
+            item
+        }
+        val firstPage: Mono<PagedResponse<BlobItem>> = Mono.just(
+            PagedResponseBase(
+                HttpRequest(AzureHttpMethod.GET, containerUrl),
+                200,
+                HttpHeaders(),
+                items,
+                null,
+                null
+            )
+        )
+        return PagedFlux({ firstPage }, { _: String -> Mono.empty() })
     }
     @Test
     fun `When match request Then maps to a success response`() {
@@ -218,19 +304,18 @@ class MockNestFunctionsIntegrationTest {
           "persistent": true
         }
     """.trimIndent()
-        every { blobContainerClient.listBlobs() } returns blobsList
-        val fileNameList = mutableListOf<String>()
-        every { blobContainerClient.getBlobClient(capture(fileNameList)) } returns blobClient
         mockNestFunctions.forwardAdminRequest(
             request,
             "mappings",
             context
         )
-        assertEquals(2, fileNameList.size)
-        assertTrue(fileNameList[0].startsWith("__files"))
-        assertTrue(fileNameList[1].startsWith("mappings"))
-        verify {
-            blobClient.upload(any<ByteArrayInputStream>(), true)
+        // Assert storage received one __files and one mappings entry
+        runBlocking {
+            val keys = storage.list().toList()
+            val files = keys.filter { it.startsWith("__files/") }
+            val mappings = keys.filter { it.startsWith("mappings/") }
+            assertEquals(1, files.size)
+            assertEquals(1, mappings.size)
         }
 
         verify {
@@ -259,19 +344,17 @@ class MockNestFunctionsIntegrationTest {
           "persistent": true
         }
     """.trimIndent()
-        every { blobContainerClient.listBlobs() } returns blobsList
-        val fileNameList = mutableListOf<String>()
-        every { blobContainerClient.getBlobClient(capture(fileNameList)) } returns blobClient
         mockNestFunctions.forwardAdminRequest(
             request,
             "mappings",
             context
         )
-        assertEquals(2, fileNameList.size)
-        assertTrue(fileNameList[0].startsWith("__files"))
-        assertTrue(fileNameList[1].startsWith("mappings"))
-        verify {
-            blobClient.upload(any<ByteArrayInputStream>(), true)
+        runBlocking {
+            val keys = storage.list().toList()
+            val files = keys.filter { it.startsWith("__files/") }
+            val mappings = keys.filter { it.startsWith("mappings/") }
+            assertEquals(1, files.size)
+            assertEquals(1, mappings.size)
         }
 
         verify {
@@ -300,16 +383,18 @@ class MockNestFunctionsIntegrationTest {
     """.trimIndent()
         every { request.httpMethod } returns HttpMethod.POST
         every { request.body } returns mapping
-        every { blobContainerClient.listBlobs() } returns blobsList
-        val fileNameList = mutableListOf<String>()
-        every { blobContainerClient.getBlobClient(capture(fileNameList)) } returns blobClient
         mockNestFunctions.forwardAdminRequest(
             request,
             "mappings",
             context
         )
-        assertEquals(1, fileNameList.size)
-        assertTrue(fileNameList[0].startsWith("mappings"))
+        runBlocking {
+            val keys = storage.list().toList()
+            val files = keys.filter { it.startsWith("__files/") }
+            val mappings = keys.filter { it.startsWith("mappings/") }
+            assertEquals(0, files.size)
+            assertEquals(1, mappings.size)
+        }
 
         verify {
             request
@@ -337,20 +422,17 @@ class MockNestFunctionsIntegrationTest {
         }
     """.trimIndent()
 
-        every { blobContainerClient.listBlobs() } returns blobsList
-        val fileNameList = mutableListOf<String>()
-        every { blobContainerClient.getBlobClient(capture(fileNameList)) } returns blobClient
-        val payloadList = mutableListOf<ByteArrayInputStream>()
-        every {
-            blobClient.upload(capture(payloadList), true)
-        } returns Unit
         mockNestFunctions.forwardAdminRequest(
             request,
             "mappings",
             context
         )
 
-        assertTrue(payloadList.isEmpty())
+        runBlocking {
+            val keys = storage.list().toList()
+            // Transient mapping should not persist anything
+            assertTrue(keys.isEmpty())
+        }
 
         verify {
             request
@@ -379,20 +461,16 @@ class MockNestFunctionsIntegrationTest {
         }
     """.trimIndent()
 
-        every { blobContainerClient.listBlobs() } returns blobsList
-        val fileNameList = mutableListOf<String>()
-        every { blobContainerClient.getBlobClient(capture(fileNameList)) } returns blobClient
-        val payloadList = mutableListOf<ByteArrayInputStream>()
-        every {
-            blobClient.upload(capture(payloadList), true)
-        } returns Unit
         mockNestFunctions.forwardAdminRequest(
             request,
             "mappings",
             context
         )
 
-        assertTrue(payloadList.isEmpty())
+        runBlocking {
+            val keys = storage.list().toList()
+            assertTrue(keys.isEmpty())
+        }
 
         verify {
             request

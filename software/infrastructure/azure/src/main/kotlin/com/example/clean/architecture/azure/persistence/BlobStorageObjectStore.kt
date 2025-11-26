@@ -32,7 +32,7 @@ class BlobStorageObjectStore(
     override suspend fun save(id: String, content: String): String {
         logger.info { "Saving object with id: $id" }
         val client = containerClient.getBlobAsyncClient(id)
-        client.upload(BinaryData.fromString(content), true).awaitSingle()
+        client.upload(BinaryData.fromString(content), true).awaitFirstOrNull()
         return client.blobUrl
     }
 
@@ -52,7 +52,7 @@ class BlobStorageObjectStore(
     override suspend fun delete(id: String) {
         logger.info { "Deleting object with id: $id" }
         val client = containerClient.getBlobAsyncClient(id)
-        runCatching { client.delete().awaitSingle() }
+        runCatching { client.delete().awaitFirstOrNull() }
             .onFailure { logger.info { "Error deleting mapping with id $id: $it" } }
             .getOrThrow()
     }
@@ -61,7 +61,7 @@ class BlobStorageObjectStore(
         containerClient.listBlobs().asFlow().map { it.name }
 
     override fun listPrefix(prefix: String): Flow<String> =
-        containerClient.listBlobs(ListBlobsOptions().setPrefix(prefix), null)
+        containerClient.listBlobs(ListBlobsOptions().setPrefix(prefix))
             .asFlow()
             .map { it.name }
 
