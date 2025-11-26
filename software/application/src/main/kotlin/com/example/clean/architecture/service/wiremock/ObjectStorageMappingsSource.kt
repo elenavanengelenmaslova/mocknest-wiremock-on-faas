@@ -7,7 +7,6 @@ import com.github.tomakehurst.wiremock.stubbing.StubMapping
 import com.github.tomakehurst.wiremock.stubbing.StubMappings
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.flow.asFlow
 import kotlinx.coroutines.flow.flatMapMerge
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.runBlocking
@@ -29,23 +28,17 @@ class ObjectStorageMappingsSource(
     @OptIn(ExperimentalCoroutinesApi::class)
     override fun loadMappingsInto(stubMappings: StubMappings) {
         logger.info { "Loading objects ObjectStorageMappingsSource: $stubMappings" }
-        // WireMock expects blocking; we stream internally with bounded concurrency and block until done
+        // WireMock expects blocking; stream internally with bounded concurrency and block until done
         runBlocking {
-            val keys = runCatching { storage.listPrefix(prefix) }
+            val keysFlow = runCatching { storage.listPrefix(prefix) }
                 .onFailure { e -> logger.error(e) { "Failed to list mappings with prefix '$prefix'" } }
-                .getOrDefault(emptyList())
+                .getOrThrow()
 
-            if (keys.isEmpty()) {
-                logger.info { "No mappings found in storage (prefix='$prefix')." }
-                return@runBlocking
-            }
-
-            logger.info { "Loading ${keys.size} mappings from storage (prefix='$prefix')..." }
-
+            var total = 0
             var loaded = 0
-            keys
-                .asFlow()
+            keysFlow
                 .flatMapMerge(concurrency) { key ->
+                    total++
                     flow {
                         val json = runCatching { storage.get(key) }
                             .onFailure { e -> logger.error { "Failed to get mapping '$key': $e" } }
@@ -64,7 +57,7 @@ class ObjectStorageMappingsSource(
                         }
                 }
 
-            logger.info { "Finished loading ${loaded}/${keys.size} mappings from storage." }
+            logger.info { "Finished loading $loaded/$total mappings from storage." }
         }
     }
 
@@ -72,10 +65,12 @@ class ObjectStorageMappingsSource(
     override fun save(mapping: StubMapping) {
         val id = mapping.id
         val key = "$prefix$id.json"
-        runCatching {
-            storage.save(key, Json.write(mapping))
-        }.onFailure { e ->
-            logger.error(e) { "Failed to save mapping ${'$'}id to ${'$'}key" }
+        runBlocking {
+            runCatching {
+                storage.save(key, Json.write(mapping))
+            }.onFailure { e ->
+                logger.error(e) { "Failed to save mapping ${'$'}id to ${'$'}key" }
+            }
         }
     }
 
@@ -86,17 +81,21 @@ class ObjectStorageMappingsSource(
     override fun remove(mapping: StubMapping) {
         val id = mapping.id
         val key = "$prefix$id.json"
-        runCatching { storage.delete(key) }
-            .onFailure { e -> logger.error(e) { "Failed to delete mapping ${'$'}id at ${'$'}key" } }
+        runBlocking {
+            runCatching { storage.delete(key) }
+                .onFailure { e -> logger.error(e) { "Failed to delete mapping ${'$'}id at ${'$'}key" } }
+        }
     }
 
     override fun removeAll() {
-        runCatching { storage.listPrefix(prefix) }
-            .onFailure { e -> logger.error(e) { "Failed to list mappings for removeAll with prefix '${'$'}prefix'" } }
-            .getOrDefault(emptyList())
-            .forEach { key ->
+        runBlocking {
+            val flow = runCatching { storage.listPrefix(prefix) }
+                .onFailure { e -> logger.error(e) { "Failed to list mappings for removeAll with prefix '${'$'}prefix'" } }
+                .getOrThrow()
+            flow.collect { key ->
                 runCatching { storage.delete(key) }
                     .onFailure { e -> logger.error(e) { "Failed to delete mapping key ${'$'}key" } }
             }
+        }
     }
 }

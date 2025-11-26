@@ -1,8 +1,11 @@
 package com.example.clean.architecture.azure.persistence.config
 
 import com.azure.identity.DefaultAzureCredentialBuilder
-import com.azure.storage.blob.BlobContainerClient
+import com.azure.storage.blob.BlobContainerAsyncClient
+import com.azure.storage.blob.BlobServiceAsyncClient
 import com.azure.storage.blob.BlobServiceClientBuilder
+import com.azure.storage.blob.batch.BlobBatchAsyncClient
+import com.azure.storage.blob.batch.BlobBatchClientBuilder
 import io.github.oshai.kotlinlogging.KotlinLogging
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.context.annotation.Bean
@@ -19,13 +22,20 @@ class BlobStorageConfig(
 ) {
 
     @Bean
-    fun blobContainerClient(): BlobContainerClient {
-        logger.info { "Initializing Blob Container Client with container name: $containerName using managed identity" }
+    fun blobServiceAsyncClient(): BlobServiceAsyncClient {
+        logger.info { "Initializing Async Blob Service Client using managed identity" }
         val credential = DefaultAzureCredentialBuilder().build()
         return BlobServiceClientBuilder()
             .endpoint(endpoint)
             .credential(credential)
-            .buildClient()
-            .getBlobContainerClient(containerName)
+            .buildAsyncClient()
     }
+
+    @Bean
+    fun blobContainerAsyncClient(service: BlobServiceAsyncClient): BlobContainerAsyncClient =
+        service.getBlobContainerAsyncClient(containerName)
+
+    @Bean
+    fun blobBatchAsyncClient(service: BlobServiceAsyncClient): BlobBatchAsyncClient =
+        BlobBatchClientBuilder(service).buildAsyncClient()
 }
