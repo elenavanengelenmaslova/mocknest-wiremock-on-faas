@@ -1,14 +1,21 @@
 package com.example.clean.architecture.azure.persistence
 
-import com.azure.storage.blob.BlobContainerClient
+import com.azure.core.util.BinaryData
+import com.azure.storage.blob.BlobContainerAsyncClient
+import com.azure.storage.blob.batch.BlobBatchAsyncClient
+import com.azure.storage.blob.models.DeleteSnapshotsOptionType
 import com.azure.storage.blob.models.ListBlobsOptions
 import com.example.clean.architecture.persistence.ObjectStorageInterface
 import io.github.oshai.kotlinlogging.KotlinLogging
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.async
-import kotlinx.coroutines.sync.Semaphore
-import kotlinx.coroutines.sync.withPermit
-import kotlinx.coroutines.withContext
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flatMapMerge
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.reactive.asFlow
+import kotlinx.coroutines.reactive.awaitFirstOrNull
+import kotlinx.coroutines.reactor.awaitSingle
+import kotlinx.coroutines.reactor.awaitSingleOrNull
 import org.springframework.context.annotation.Primary
 import org.springframework.stereotype.Repository
 import java.nio.charset.StandardCharsets
@@ -18,62 +25,85 @@ private val logger = KotlinLogging.logger {}
 @Repository
 @Primary
 class BlobStorageObjectStore(
-    private val containerClient: BlobContainerClient
+    private val containerClient: BlobContainerAsyncClient,
+    private val batchClient: BlobBatchAsyncClient,
 ) : ObjectStorageInterface {
 
-    override fun save(id: String, content: String): String {
+    override suspend fun save(id: String, content: String): String {
         logger.info { "Saving object with id: $id" }
-        val blobClient = containerClient.getBlobClient(id)
-        blobClient.upload(content.byteInputStream(), true)
-        return blobClient.blobUrl
+        val client = containerClient.getBlobAsyncClient(id)
+        client.upload(BinaryData.fromString(content), true).awaitSingle()
+        return client.blobUrl
     }
 
-    override fun get(id: String): String? {
+    override suspend fun get(id: String): String? {
         logger.info { "Getting object with id: $id" }
-        val blobClient = containerClient.getBlobClient(id)
-        return if (blobClient.exists()) {
-            blobClient.downloadContent().toBytes().toString(StandardCharsets.UTF_8)
-        } else {
+        val client = containerClient.getBlobAsyncClient(id)
+        val exists = client.exists().awaitSingle()
+        if (!exists) {
             logger.info { "Mapping with id: $id not found" }
-            null
+            return null
         }
+        return client.downloadContent()
+            .map { it.toBytes().toString(StandardCharsets.UTF_8) }
+            .awaitSingleOrNull()
     }
 
-    override fun delete(id: String) {
+    override suspend fun delete(id: String) {
         logger.info { "Deleting object with id: $id" }
-        val blobClient = containerClient.getBlobClient(id)
-        if (blobClient.exists()) {
-            blobClient.delete()
-        } else {
-            logger.info { "Mapping with id: $id not found, nothing to delete" }
-        }
+        val client = containerClient.getBlobAsyncClient(id)
+        runCatching { client.delete().awaitSingle() }
+            .onFailure { logger.info { "Error deleting mapping with id $id: $it" } }
+            .getOrThrow()
     }
 
-    override fun list(): List<String> {
-        logger.info { "Listing all object" }
-        return containerClient.listBlobs()
+    override fun list(): Flow<String> =
+        containerClient.listBlobs().asFlow().map { it.name }
+
+    override fun listPrefix(prefix: String): Flow<String> =
+        containerClient.listBlobs(ListBlobsOptions().setPrefix(prefix), null)
+            .asFlow()
             .map { it.name }
-            .toList()
-    }
 
-    override fun listPrefix(prefix: String): List<String> {
-        logger.info { "Listing objects with prefix: $prefix" }
-        val options = ListBlobsOptions().setPrefix(prefix)
-        return containerClient.listBlobs(options, null).map { it.name }.toList()
-    }
+    @OptIn(ExperimentalCoroutinesApi::class)
+    override fun getMany(ids: Flow<String>, concurrency: Int): Flow<Pair<String, String?>> =
+        ids.flatMapMerge(concurrency) { id ->
+            flow {
+                val client = containerClient.getBlobAsyncClient(id)
+                val exists = client.exists().awaitSingle()
+                val value = if (!exists) null else client
+                    .downloadContent()
+                    .map { it.toBytes().toString(StandardCharsets.UTF_8) }
+                    .awaitSingleOrNull()
+                emit(id to value)
+            }
+        }
 
-    override suspend fun getMany(ids: Collection<String>, concurrency: Int): Map<String, String?> =
-        withContext(Dispatchers.IO) {
-            val sem = Semaphore(concurrency)
-            val deferred = ids.associateWith { id ->
-                async {
-                    sem.withPermit {
-                        val client = containerClient.getBlobClient(id)
-                        if (!client.exists()) return@withPermit null
-                        client.downloadContent().toBytes().toString(StandardCharsets.UTF_8)
-                    }
+    @OptIn(ExperimentalCoroutinesApi::class)
+    override suspend fun deleteMany(ids: Flow<String>, concurrency: Int) {
+        fun chunkedFlow(source: Flow<String>, batchSize: Int): Flow<List<String>> = flow {
+            val buf = ArrayList<String>(batchSize)
+            source.collect { id ->
+                buf.add(id)
+                if (buf.size >= batchSize) {
+                    emit(ArrayList(buf))
+                    buf.clear()
                 }
             }
-            deferred.mapValues { it.value.await() }
+            if (buf.isNotEmpty()) emit(ArrayList(buf))
         }
+
+        chunkedFlow(ids, 256)
+            .flatMapMerge(concurrency) { batch ->
+                flow {
+                    val base = containerClient.blobContainerUrl.trimEnd('/')
+                    val urls = batch.map { key -> "$base/$key" }
+                    batchClient.deleteBlobs(urls, DeleteSnapshotsOptionType.INCLUDE)
+                        .then() // Mono<Void>
+                        .awaitFirstOrNull()
+                    emit(Unit)
+                }
+            }
+            .collect { }
+    }
 }

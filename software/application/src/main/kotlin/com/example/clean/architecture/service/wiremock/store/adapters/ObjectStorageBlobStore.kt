@@ -4,10 +4,12 @@ import com.example.clean.architecture.persistence.ObjectStorageInterface
 import com.github.tomakehurst.wiremock.common.InputStreamSource
 import com.github.tomakehurst.wiremock.store.BlobStore
 import io.github.oshai.kotlinlogging.KotlinLogging
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.toList
+import kotlinx.coroutines.runBlocking
 import java.io.ByteArrayInputStream
 import java.io.InputStream
-import java.util.Base64
-import java.util.Optional
+import java.util.*
 import java.util.stream.Stream
 
 /**
@@ -26,12 +28,12 @@ class ObjectStorageBlobStore(
     private fun fullKey(key: String) = if (key.startsWith(prefix)) key else prefix + key.trimStart('/')
     private fun isTextKey(key: String) = textExtensions.any { key.endsWith(it, ignoreCase = true) }
 
-    override fun get(key: String): Optional<ByteArray> {
-        val raw = storage.get(fullKey(key)) ?: return Optional.empty()
+    override fun get(key: String): Optional<ByteArray> = runBlocking {
+        val raw = storage.get(fullKey(key)) ?: return@runBlocking Optional.empty()
         if (isTextKey(key)) {
-            return Optional.of(raw.toByteArray(Charsets.UTF_8))
+            return@runBlocking Optional.of(raw.toByteArray(Charsets.UTF_8))
         }
-        return runCatching {
+        return@runBlocking runCatching {
             Optional.of(Base64.getDecoder().decode(raw))
         }.onFailure {
             logger.debug { "Non-Base64 content for key=$key; returning raw UTF-8 bytes" }
@@ -45,26 +47,31 @@ class ObjectStorageBlobStore(
         InputStreamSource { getStream(key).orElse(ByteArrayInputStream(ByteArray(0))) }
 
     override fun put(key: String, value: ByteArray) {
-        val k = fullKey(key)
-        if (isTextKey(key)) {
-            storage.save(k, value.toString(Charsets.UTF_8))
-        } else {
-            val encoded = Base64.getEncoder().encodeToString(value)
-            storage.save(k, encoded)
+        runBlocking {
+            val k = fullKey(key)
+            if (isTextKey(key)) {
+                storage.save(k, value.toString(Charsets.UTF_8))
+            } else {
+                val encoded = Base64.getEncoder().encodeToString(value)
+                storage.save(k, encoded)
+            }
         }
     }
 
-    override fun remove(key: String) {
+    override fun remove(key: String) = runBlocking {
         storage.delete(fullKey(key))
     }
 
-    override fun getAllKeys(): Stream<String> =
-        storage.listPrefix(prefix).asSequence()
+    override fun getAllKeys(): Stream<String> = runBlocking {
+        val list = storage.listPrefix(prefix)
             .map { it.removePrefix(prefix) }
             .toList()
-            .stream()
+        list.stream()
+    }
 
     override fun clear() {
-        storage.listPrefix(prefix).forEach { storage.delete(it) }
+        runBlocking {
+            storage.listPrefix(prefix).collect { storage.delete(it) }
+        }
     }
 }

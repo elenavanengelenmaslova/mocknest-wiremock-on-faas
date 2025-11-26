@@ -91,8 +91,9 @@ class AdminForwarder(
         val response = (root["response"] as? com.fasterxml.jackson.databind.node.ObjectNode)
             ?: root.putObject("response")
 
-        // If already bodyFileName, nothing to do
-        if (response.has("bodyFileName") || root["persistent"]?.toString()?.lowercase() != "true") return mappingJson
+        // If already bodyFileName, or mapping is transient (persistent=false), nothing to do
+        val persistent = root["persistent"]?.asBoolean() ?: false
+        if (response.has("bodyFileName") || !persistent) return mappingJson
 
         val bodyNode = response.remove("body")
         val base64Node = response.remove("base64Body")
