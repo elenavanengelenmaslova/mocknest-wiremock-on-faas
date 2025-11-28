@@ -61,6 +61,9 @@
         },
         "app_settings": {
           "APPINSIGHTS_INSTRUMENTATIONKEY": "${azurerm_application_insights.AppInsights.instrumentation_key}",
+          "APPLICATIONINSIGHTS_ENABLE_AGENT": "true",
+          "APPLICATIONINSIGHTS_INSTRUMENTATION_LOGGING_LEVEL": "INFO",
+          "APPLICATIONINSIGHTS_SELF_DIAGNOSTICS_LEVEL": "ERROR",
           "MAIN_CLASS": "com.example.clean.architecture.Application",
           "WEBSITE_RUN_FROM_PACKAGE": "1"
         },

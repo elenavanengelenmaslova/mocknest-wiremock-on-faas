@@ -46,7 +46,8 @@ class AdminForwarderNormalizeMappingTest {
                 "status": 200,
                 "headers": { "X-Foo": "bar" },
                 "body": "hello"
-              }
+              },
+              "persistent": true
             }
         """.trimIndent()
 
@@ -83,7 +84,8 @@ class AdminForwarderNormalizeMappingTest {
               "response": {
                 "status": 200,
                 "base64Body": "$b64"
-              }
+              },
+              "persistent": true
             }
         """.trimIndent()
 
@@ -109,9 +111,9 @@ class AdminForwarderNormalizeMappingTest {
               "response": {
                 "status": 200,
                 "bodyFileName": "existing.json",
-                "headers": { "Content-Type": "text/plain" },
-                "body": "should-not-be-touched"
-              }
+                "headers": { "Content-Type": "text/plain" }
+              },
+              "persistent": true
             }
         """.trimIndent()
 
