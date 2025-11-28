@@ -98,7 +98,7 @@ class BlobStorageObjectStore(
                 flow {
                     val urls = batch.map { key ->
                         logger.info { "Getting URL with key: $key" }
-                        containerClient.getBlobAsyncClient(key.trimStart('/')).blobUrl
+                        containerClient.getBlobAsyncClient(key).blobUrl
                     }
                     logger.info { "Deleting blobs for $urls" }
                     batchClient.deleteBlobs(urls, DeleteSnapshotsOptionType.INCLUDE)
