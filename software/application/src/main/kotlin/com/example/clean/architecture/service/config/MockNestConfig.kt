@@ -3,6 +3,8 @@ package com.example.clean.architecture.service.config
 import com.example.clean.architecture.persistence.ObjectStorageInterface
 import com.example.clean.architecture.service.wiremock.CompositeMappingsSource
 import com.example.clean.architecture.service.wiremock.ObjectStorageMappingsSource
+import com.example.clean.architecture.service.wiremock.extensions.DeleteAllMappingsAndFilesFilter
+import com.example.clean.architecture.service.wiremock.extensions.NormalizeMappingBodyFilter
 import com.example.clean.architecture.service.wiremock.store.adapters.ObjectStorageBlobStore
 import com.example.clean.architecture.service.wiremock.store.adapters.ObjectStorageWireMockStores
 import com.github.tomakehurst.wiremock.WireMockServer
@@ -40,6 +42,7 @@ class MockNestConfig {
             .notifier(ConsoleNotifier(true))
             .httpServerFactory(directCallHttpServerFactory)
             .withStores(ObjectStorageWireMockStores(storage))
+            .extensions(NormalizeMappingBodyFilter(storage), DeleteAllMappingsAndFilesFilter(storage))
             // Keep classpath root for any built-in defaults such as health endpoint
             .mappingSource(CompositeMappingsSource(ObjectStorageMappingsSource(storage), rootDir))
 

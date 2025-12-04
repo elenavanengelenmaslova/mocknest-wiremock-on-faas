@@ -235,6 +235,9 @@ class AzureStack(scope: Construct, id: String) :
                     mapOf(
                         "MAIN_CLASS" to "com.example.clean.architecture.Application",
                         "APPINSIGHTS_INSTRUMENTATIONKEY" to appInsights.instrumentationKey,
+                        "APPLICATIONINSIGHTS_ENABLE_AGENT" to "true",
+                        "APPLICATIONINSIGHTS_INSTRUMENTATION_LOGGING_LEVEL" to "INFO",
+                        "APPLICATIONINSIGHTS_SELF_DIAGNOSTICS_LEVEL" to "ERROR",
                         "WEBSITE_RUN_FROM_PACKAGE" to "1",
                     )
                 )
