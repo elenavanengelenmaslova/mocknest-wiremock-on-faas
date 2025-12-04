@@ -61,7 +61,6 @@ class MockNestFunctionsIntegrationTest {
 
     @BeforeEach
     fun setup() {
-        wireMockServer.resetAll()
         // Set container expectations per test run
         every { container.blobContainerUrl } returns containerUrl
         every { container.getBlobAsyncClient(any()) } answers {
@@ -93,6 +92,7 @@ class MockNestFunctionsIntegrationTest {
         runBlocking {
             storage.list().toList().forEach { storage.delete(it) }
         }
+        wireMockServer.resetAll()
     }
 
     private fun mockBlobAsyncClient(name: String): BlobAsyncClient {
@@ -325,7 +325,7 @@ class MockNestFunctionsIntegrationTest {
     }
 
     @Test
-    fun `When updating a WireMock mapping with PUT then normalize body to __files returns 201 status code`() {
+    fun `When updating a WireMock mapping with PUT then normalize body to __files returns 200 status code`() {
         every { request.httpMethod } returns HttpMethod.PUT
         every { request.body } returns """
         {
@@ -346,7 +346,7 @@ class MockNestFunctionsIntegrationTest {
     """.trimIndent()
         mockNestFunctions.forwardAdminRequest(
             request,
-            "mappings",
+            "mappings/76ada7b0-55ae-4229-91c4-396a36f19999",
             context
         )
         runBlocking {
@@ -359,7 +359,7 @@ class MockNestFunctionsIntegrationTest {
 
         verify {
             request
-                .createResponseBuilder(HttpStatus.valueOf(201))
+                .createResponseBuilder(HttpStatus.valueOf(200))
         }
     }
 
@@ -463,7 +463,7 @@ class MockNestFunctionsIntegrationTest {
 
         mockNestFunctions.forwardAdminRequest(
             request,
-            "mappings",
+            "mappings/76ada7b0-55ae-4229-91c4-396a36f19999",
             context
         )
 
@@ -474,7 +474,7 @@ class MockNestFunctionsIntegrationTest {
 
         verify {
             request
-                .createResponseBuilder(HttpStatus.valueOf(201))
+                .createResponseBuilder(HttpStatus.valueOf(200))
         }
     }
 

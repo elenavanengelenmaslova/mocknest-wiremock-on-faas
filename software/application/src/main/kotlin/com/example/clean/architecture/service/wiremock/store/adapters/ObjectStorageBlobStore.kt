@@ -18,14 +18,14 @@ import java.util.stream.Stream
  * - Text files (e.g., .json) are stored as UTF-8 text; binaries are Base64-encoded.
  *   On read, for non-text keys we try Base64 decode and fall back to UTF-8 bytes if not Base64.
  */
+const val FILES_PREFIX = "__files/"
 class ObjectStorageBlobStore(
     private val storage: ObjectStorageInterface,
 ) : BlobStore {
     private val logger = KotlinLogging.logger {}
-    private val prefix = "__files/"
     private val textExtensions = setOf(".json", ".txt", ".xml", ".html", ".csv")
 
-    private fun fullKey(key: String) = if (key.startsWith(prefix)) key else prefix + key.trimStart('/')
+    private fun fullKey(key: String) = if (key.startsWith(FILES_PREFIX)) key else FILES_PREFIX + key.trimStart('/')
     private fun isTextKey(key: String) = textExtensions.any { key.endsWith(it, ignoreCase = true) }
 
     override fun get(key: String): Optional<ByteArray> = runBlocking {
@@ -63,8 +63,8 @@ class ObjectStorageBlobStore(
     }
 
     override fun getAllKeys(): Stream<String> = runBlocking {
-        val list = storage.listPrefix(prefix)
-            .map { it.removePrefix(prefix) }
+        val list = storage.listPrefix(FILES_PREFIX)
+            .map { it.removePrefix(FILES_PREFIX) }
             .toList()
         list.stream()
     }
@@ -72,7 +72,7 @@ class ObjectStorageBlobStore(
     override fun clear() {
         runBlocking {
             // Use bulk delete for efficiency
-            storage.deleteMany(storage.listPrefix(prefix))
+            storage.deleteMany(storage.listPrefix(FILES_PREFIX))
         }
     }
 }
