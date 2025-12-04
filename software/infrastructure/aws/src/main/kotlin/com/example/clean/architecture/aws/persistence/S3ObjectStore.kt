@@ -10,7 +10,6 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flatMapMerge
 import kotlinx.coroutines.flow.flow
-import kotlinx.coroutines.flow.toList
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Repository
 import java.nio.charset.StandardCharsets
@@ -35,7 +34,7 @@ class S3ObjectStore(
                 contentLength = byteStream.contentLength
                 contentType = when {
                     id.endsWith(".json", ignoreCase = true) -> "application/json; charset=UTF-8"
-                    id.endsWith(".txt", ignoreCase = true)  -> "text/plain; charset=UTF-8"
+                    id.endsWith(".txt", ignoreCase = true) -> "text/plain; charset=UTF-8"
                     else -> "application/octet-stream"
                 }
             }
@@ -74,7 +73,9 @@ class S3ObjectStore(
         logger.info { "Listing all object" }
         var token: String? = null
         do {
-            val resp = s3Client.listObjectsV2(ListObjectsV2Request { bucket = bucketName; continuationToken = token; maxKeys = 1000 })
+            val resp = s3Client.listObjectsV2(ListObjectsV2Request {
+                bucket = bucketName; continuationToken = token; maxKeys = 1000
+            })
             resp.contents?.forEach { it.key?.let { k -> emit(k) } }
             token = resp.nextContinuationToken
         } while (!token.isNullOrBlank())
@@ -108,7 +109,9 @@ class S3ObjectStore(
                         result = response.body?.toByteArray()?.toString(StandardCharsets.UTF_8)
                     }
                     result
-                }.getOrNull()
+                }
+                    .onFailure { logger.error(it) { "Error during getting many object: $it" } }
+                    .getOrNull()
                 emit(id to content)
             }
         }
@@ -141,6 +144,6 @@ class S3ObjectStore(
                     emit(Unit)
                 }
             }
-            .toList() // drain to execute
+            .collect { } // drain to execute
     }
 }
