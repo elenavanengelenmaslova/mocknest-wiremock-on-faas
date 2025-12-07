@@ -3,6 +3,7 @@ package com.example.clean.architecture.service.wiremock.extensions
 import com.example.clean.architecture.persistence.ObjectStorageInterface
 import com.example.clean.architecture.service.mapper
 import com.example.clean.architecture.service.wiremock.store.adapters.FILES_PREFIX
+import com.fasterxml.jackson.databind.node.ObjectNode
 import com.github.tomakehurst.wiremock.extension.requestfilter.AdminRequestFilterV2
 import com.github.tomakehurst.wiremock.extension.requestfilter.RequestFilterAction
 import com.github.tomakehurst.wiremock.http.ImmutableRequest
@@ -67,9 +68,9 @@ class NormalizeMappingBodyFilter(
 
     internal suspend fun normalizeMappingToBodyFile(mappingJson: String): String {
 
-        val root = mapper.readTree(mappingJson) as com.fasterxml.jackson.databind.node.ObjectNode
+        val root = mapper.readTree(mappingJson) as ObjectNode
         // Get or create response without overwriting existing one
-        val response = (root["response"] as? com.fasterxml.jackson.databind.node.ObjectNode)
+        val response = (root["response"] as? ObjectNode)
             ?: root.putObject("response")
 
         // If already bodyFileName, or mapping is transient (persistent=false), nothing to do
@@ -84,17 +85,19 @@ class NormalizeMappingBodyFilter(
         // Ensure mapping has an id to derive file name
         val mappingId = root["id"]?.asText() ?: UUID.randomUUID().toString().also { root.put("id", it) }
         val isBinary = base64Node != null
-        val fileName = "$FILES_PREFIX$mappingId${if (isBinary) ".bin" else ".json"}"
+
+        val fileName = "$mappingId${if (isBinary) ".bin" else ".json"}"
+        val fullFileName = "$FILES_PREFIX$fileName"
         // Persist into FILES store under the relative file name
         if (isBinary) {
-            storage.save(fileName, base64Node.asText())
+            storage.save(fullFileName, base64Node.asText())
         } else {
             val text = bodyNode.asText()
-            storage.save(fileName, text)
+            storage.save(fullFileName, text)
         }
 
         // Get or create headers without overwriting existing headers
-        val headers = (response["headers"] as? com.fasterxml.jackson.databind.node.ObjectNode)
+        val headers = (response["headers"] as? ObjectNode)
             ?: response.putObject("headers")
 
         // Only set default Content-Type when it's missing

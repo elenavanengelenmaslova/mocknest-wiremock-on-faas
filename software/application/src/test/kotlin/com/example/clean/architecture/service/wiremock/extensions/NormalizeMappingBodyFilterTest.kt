@@ -44,14 +44,13 @@ class NormalizeMappingBodyFilterTest {
         // bodyFileName is present and matches id.json
         val bodyFileName = response.get("bodyFileName").asText()
         assertTrue(bodyFileName.endsWith("$id.json"))
-        assertTrue(bodyFileName.contains(FILES_PREFIX.removeSuffix("/")))
         // headers preserved and default content-type added
         val headers = response.get("headers")
         assertEquals("bar", headers.get("X-Foo").asText())
         assertEquals("application/json", headers.get("Content-Type").asText())
 
         // blob store contains the file with expected content
-        val savedContent = storage.store[bodyFileName]
+        val savedContent = storage.store["$FILES_PREFIX$bodyFileName"]
         assertNotNull(savedContent)
         assertEquals("hello", savedContent)
     }
@@ -84,7 +83,7 @@ class NormalizeMappingBodyFilterTest {
         val headers = response.get("headers")
         assertEquals("application/octet-stream", headers.get("Content-Type").asText())
 
-        val content = storage.store[bodyFileName]
+        val content = storage.store["$FILES_PREFIX$bodyFileName"]
         assertNotNull(content)
         // Binary content is stored as base64 string in ObjectStorage
         assertEquals(b64, content)
