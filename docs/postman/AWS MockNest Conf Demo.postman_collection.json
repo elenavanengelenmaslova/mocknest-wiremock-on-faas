@@ -130,7 +130,7 @@
 				],
 				"body": {
 					"mode": "raw",
-					"raw": "{\n  \"id\": \"76ada7b0-55ae-4229-91c4-396a36f18345\",\n  \"priority\": 1,\n  \"request\": {\n    \"method\": \"GET\",\n    \"urlPath\": \"/bored/api/activity\",\n    \"queryParameters\": {\n      \"type\": {\n        \"equalTo\": \"social\"\n      }\n    }\n  },\n  \"response\": {\n    \"status\": 200,\n    \"headers\": {\n      \"Content-Type\": \"application/json\"\n    },\n    \"body\": \"{\\n  \\\"activity\\\": \\\"Escape the nulls of daily life — nerd out over Kotlin on Serverless @ VoxxedDays Amsterdam 2025\\\",\\n  \\\"type\\\": \\\"social\\\",\\n  \\\"participants\\\": 1,\\n  \\\"link\\\": \\\"https://amsterdam.voxxeddays.com/\\\",\\n  \\\"price\\\": 0.3,\\n  \\\"accessibility\\\": 0.4\\n}\"\n  },\n  \"persistent\": true\n}\n",
+					"raw": "{\n  \"id\": \"76ada7b0-55ae-4229-91c4-396a36f18347\",\n  \"priority\": 2,\n  \"request\": {\n    \"method\": \"GET\",\n    \"urlPath\": \"/bored/api/activity\",\n    \"queryParameters\": {\n      \"type\": {\n        \"equalTo\": \"social\"\n      }\n    }\n  },\n  \"response\": {\n    \"status\": 200,\n    \"headers\": {\n      \"Content-Type\": \"application/json\"\n    },\n    \"body\": \"[\\n {\\n  \\\"activity\\\": \\\"Escape the nulls of daily life — nerd out over WireMock on AWS Lambda @ AWS Community Day\\\",\\n  \\\"type\\\": \\\"social\\\",\\n  \\\"participants\\\": 1,\\n  \\\"link\\\": \\\"https://awscommunityday.nl/\\\",\\n  \\\"price\\\": 0.3,\\n  \\\"accessibility\\\": 0.4\\n}\\n]\"\n  },\n  \"persistent\": true\n}\n",
 					"options": {
 						"raw": {
 							"language": "json"
@@ -159,7 +159,8 @@
 						"key": "x-api-key",
 						"value": "{{api_key}}",
 						"description": "AWS API Key",
-						"type": "text"
+						"type": "text",
+						"disabled": true
 					}
 				],
 				"url": {
@@ -229,6 +230,50 @@
 			"response": []
 		},
 		{
+			"name": "Get file",
+			"protocolProfileBehavior": {
+				"disableBodyPruning": true
+			},
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "x-api-key",
+						"value": "{{api_key}}",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{AWS_URL}}/__admin/files/76ada7b0-55ae-4229-91c4-396a36f18347.json",
+					"host": [
+						"{{AWS_URL}}"
+					],
+					"path": [
+						"__admin",
+						"files",
+						"76ada7b0-55ae-4229-91c4-396a36f18347.json"
+					],
+					"query": [
+						{
+							"key": "",
+							"value": "",
+							"disabled": true
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
 			"name": "Health",
 			"protocolProfileBehavior": {
 				"disableBodyPruning": true
@@ -265,7 +310,78 @@
 			"response": []
 		},
 		{
-			"name": "Delete mapping Add Soap",
+			"name": "Delete mappings",
+			"request": {
+				"method": "DELETE",
+				"header": [
+					{
+						"key": "x-api-key",
+						"value": "{{api_key}}",
+						"description": "AWS API Key",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{AWS_URL}}/__admin/mappings",
+					"host": [
+						"{{AWS_URL}}"
+					],
+					"path": [
+						"__admin",
+						"mappings"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Get mappings",
+			"protocolProfileBehavior": {
+				"disableBodyPruning": true
+			},
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "x-api-key",
+						"value": "{{api_key}}",
+						"description": "AWS API Key",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{AWS_URL}}/__admin/mappings",
+					"host": [
+						"{{AWS_URL}}"
+					],
+					"path": [
+						"__admin",
+						"mappings"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Delete mapping soap request",
 			"request": {
 				"method": "DELETE",
 				"header": [
