@@ -36,6 +36,166 @@ Client --> Call
 ## Solution Architecture
 ![SolutionDesign.png](docs/SolutionDesign.png)
 
+# Using the Mock (cURL quickstart)
+The mock server exposes the WireMock Admin API under the `__admin` path and your mocked endpoints under their own paths.
+
+Below are copy-paste-ready cURL examples for the most common scenarios, followed by links to the Postman collections with many more examples.
+
+Prerequisites:
+- Set base URL and keys as environment variables depending on your deployment target.
+
+Azure Function App:
+- Admin operations (create/update/delete mappings): use the admin function key
+- Client calls (calling your mocked endpoints): use the mocknest function key
+```
+export AZURE_URL="https://<your-app>.azurewebsites.net"
+export ADMIN_FUNCTION_KEY="<your-admin-function-key>"
+export CLIENT_FUNCTION_KEY="<your-mocknest-function-key>"
+```
+
+AWS API Gateway:
+- Both admin and client calls are protected with an API key
+```
+export AWS_URL="https://<api-id>.execute-api.<region>.amazonaws.com/prod"
+export API_KEY="<your-api-key>"
+```
+
+Notes:
+- Replace the headers accordingly in the examples: Azure uses `x-functions-key`, AWS uses `x-api-key`.
+- The complete Admin API is documented here: [wiremock-admin-api.json](software/application/src/main/resources/wiremock-admin-api.json)
+- This app normalizes mapping bodies on save: when you POST/PUT `/__admin/mappings` with `persistent: true` and an inline `body`/`base64Body`, the response body is stored in storage and the mapping is rewritten to use `bodyFileName` automatically.
+
+1) Reset all mappings
+- Azure
+```
+curl -i -X POST "$AZURE_URL/__admin/mappings/reset" \
+  -H "x-functions-key: $ADMIN_FUNCTION_KEY"
+```
+- AWS
+```
+curl -i -X POST "$AWS_URL/__admin/mappings/reset" \
+  -H "x-api-key: $API_KEY"
+```
+
+2) Create a simple REST mapping
+Creates a stub for `GET /api/hello` that returns JSON. Marked `persistent: true` so the body is externalized and `bodyFileName` is used.
+- Azure
+```
+curl -i -X POST "$AZURE_URL/__admin/mappings" \
+  -H "x-functions-key: $ADMIN_FUNCTION_KEY" \
+  -H "Content-Type: application/json" \
+  --data @- <<'JSON'
+{
+  "id": "11111111-1111-1111-1111-111111111111",
+  "priority": 1,
+  "request": {
+    "method": "GET",
+    "url": "/api/hello"
+  },
+  "response": {
+    "status": 200,
+    "headers": { "Content-Type": "application/json" },
+    "body": "{\"message\":\"Hello from MockNest!\"}"
+  },
+  "persistent": true
+}
+JSON
+```
+- AWS
+```
+curl -i -X POST "$AWS_URL/__admin/mappings" \
+  -H "x-api-key: $API_KEY" \
+  -H "Content-Type: application/json" \
+  --data @- <<'JSON'
+{
+  "id": "11111111-1111-1111-1111-111111111111",
+  "priority": 1,
+  "request": { "method": "GET", "url": "/api/hello" },
+  "response": {
+    "status": 200,
+    "headers": { "Content-Type": "application/json" },
+    "body": "{\"message\":\"Hello from MockNest!\"}"
+  },
+  "persistent": true
+}
+JSON
+```
+
+3) Update an existing mapping by ID
+Replace `<UUID>` with the mapping ID created earlier.
+- Azure
+```
+curl -i -X PUT "$AZURE_URL/__admin/mappings/<UUID>" \
+  -H "x-functions-key: $ADMIN_FUNCTION_KEY" \
+  -H "Content-Type: application/json" \
+  --data @- <<'JSON'
+{
+  "id": "<UUID>",
+  "priority": 1,
+  "request": { "method": "GET", "url": "/api/hello" },
+  "response": {
+    "status": 200,
+    "headers": { "Content-Type": "application/json" },
+    "body": "{\"message\":\"Hello UPDATED!\"}"
+  },
+  "persistent": true
+}
+JSON
+```
+- AWS
+```
+curl -i -X PUT "$AWS_URL/__admin/mappings/<UUID>" \
+  -H "x-api-key: $API_KEY" \
+  -H "Content-Type: application/json" \
+  --data @- <<'JSON'
+{
+  "id": "<UUID>",
+  "priority": 1,
+  "request": { "method": "GET", "url": "/api/hello" },
+  "response": {
+    "status": 200,
+    "headers": { "Content-Type": "application/json" },
+    "body": "{\"message\":\"Hello UPDATED!\"}"
+  },
+  "persistent": true
+}
+JSON
+```
+
+4) List all mappings
+- Azure
+```
+curl -s "$AZURE_URL/__admin/mappings" -H "x-functions-key: $ADMIN_FUNCTION_KEY" | jq .
+```
+- AWS
+```
+curl -s "$AWS_URL/__admin/mappings" -H "x-api-key: $API_KEY" | jq .
+```
+
+5) Delete all mappings
+- Azure
+```
+curl -i -X DELETE "$AZURE_URL/__admin/mappings" -H "x-functions-key: $ADMIN_FUNCTION_KEY"
+```
+- AWS
+```
+curl -i -X DELETE "$AWS_URL/__admin/mappings" -H "x-api-key: $API_KEY"
+```
+
+6) Call your mocked endpoint
+Using the stub created in step 2 (`GET /api/hello`).
+- Azure (client calls use the mocknest function key):
+```
+curl -s "$AZURE_URL/api/hello" -H "x-functions-key: $CLIENT_FUNCTION_KEY" | jq .
+```
+- AWS:
+```
+curl -s "$AWS_URL/api/hello" -H "x-api-key: $API_KEY" | jq .
+```
+
+SOAP example
+The Postman collections also include a SOAP Calculator example (request to `/dneonline/calculator.asmx`). You can POST the corresponding mapping via Admin API and call the SOAP endpoint similarly. See the collections below.
+
 # Clean Architecture
 
 ![CleanArchitecture.png](docs/CleanArchitecture.png)
@@ -209,6 +369,22 @@ Before using the collections, you need to configure the environment variables:
 - `AZURE_URL`: Set to your Azure Function App endpoint
 - `admin_function_key`: Set to your Azure Function admin key (for admin operations)
 - `client_function_key`: Set to your Azure Function mocknest key (for client operations)
+
+### How to use the Postman collections
+1. Open Postman and Import the files from `docs/postman`:
+   - `AWS MockNest Conf Demo.postman_collection.json`
+   - `Azure MockNest Conf Demo.postman_collection.json`
+   - `Demo Example.postman_environment.json`
+2. Select the imported environment and fill in variables:
+   - For AWS: `AWS_URL`, `api_key`
+   - For Azure: `AZURE_URL`, `admin_function_key`, `client_function_key`
+3. Run the folders in the collection in order:
+   - Reset mappings
+   - Create mapping(s)
+   - Call mocked API
+   - View near misses / list mappings
+   - Delete mappings
+4. Refer back to the Use Cases diagram at the top of this README to understand typical flows.
 
 ## Questions or Issues
 If you have questions or encounter issues, please log them in the repository's issue tracker:
