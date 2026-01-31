@@ -40,10 +40,10 @@ class ObjectStorageWireMockStores(
     override fun getObjectStore(
         name: String?,
         persistenceTypeHint: Stores.PersistenceType?,
-        maxSize: Int,
+        maxItems: Int,
     ): ObjectStore {
         val key = name ?: "default"
-        return objectStores.computeIfAbsent(key) { InMemoryObjectStore(maxSize) }
+        return objectStores.computeIfAbsent(key) { InMemoryObjectStore(maxItems) }
     }
 
     override fun start() {}

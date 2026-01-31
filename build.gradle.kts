@@ -9,9 +9,9 @@ import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.tasks.KotlinJvmCompile
 
 plugins {
-    kotlin("jvm") version "2.1.0" apply false
-    kotlin("plugin.spring") version "2.1.0" apply false
-    id("org.springframework.boot") version "3.3.9" apply false
+    kotlin("jvm") version "2.3.0" apply false
+    kotlin("plugin.spring") version "2.3.0" apply false
+    id("org.springframework.boot") version "4.0.2" apply false
     id("io.spring.dependency-management") version "1.1.7" apply false
 }
 
@@ -26,7 +26,16 @@ subprojects {
 
     configure<DependencyManagementExtension> {
         imports {
-            mavenBom("org.springframework.boot:spring-boot-dependencies:3.3.9")
+            mavenBom("org.springframework.boot:spring-boot-dependencies:4.0.2")
+            mavenBom("org.springframework.cloud:spring-cloud-dependencies:2025.0.0")
+        }
+    }
+    
+    configurations.all {
+        resolutionStrategy.eachDependency {
+            if (requested.group == "org.wiremock") {
+                useVersion("3.13.1")
+            }
         }
     }
     // Only apply common dependencies if the project declares them
