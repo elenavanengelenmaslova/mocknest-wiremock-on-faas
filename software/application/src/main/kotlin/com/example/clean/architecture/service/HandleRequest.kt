@@ -10,6 +10,8 @@ import com.github.tomakehurst.wiremock.http.Response
 import io.github.oshai.kotlinlogging.KotlinLogging
 import org.springframework.http.HttpHeaders
 import org.springframework.http.HttpStatusCode
+import org.springframework.util.LinkedMultiValueMap
+import org.springframework.util.MultiValueMap
 import wiremock.org.apache.hc.core5.http.ContentType
 import java.net.URLEncoder
 import kotlin.text.Charsets.UTF_8
@@ -76,11 +78,15 @@ fun forwardToDirectCallHttpServer(typeCall: String, httpRequest: HttpRequest, di
         responseHeaders.add(header.key(), header.firstValue())
     }
 
+    val resultHeaders: MultiValueMap<String, String> = LinkedMultiValueMap()
+    responseHeaders.forEach { key, values ->
+        resultHeaders.addAll(key, values)
+    }
+    resultHeaders.add(HttpHeaders.CONTENT_TYPE, contentType)
+
     return HttpResponse(
         HttpStatusCode.valueOf(response.status),
-        responseHeaders.apply {
-            add(HttpHeaders.CONTENT_TYPE, contentType)
-        },
+        resultHeaders,
         response.bodyAsString
     )
 

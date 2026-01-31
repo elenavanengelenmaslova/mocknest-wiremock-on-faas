@@ -17,8 +17,8 @@ private val logger = KotlinLogging.logger {}
 @Configuration
 @Profile("!local")
 class BlobStorageConfig(
-    @Value("\${azure.storage.endpoint}") private val endpoint: String,
-    @Value("\${azure.storage.container-name}") private val containerName: String,
+    @param:Value("\${azure.storage.endpoint}") private val endpoint: String,
+    @param:Value("\${azure.storage.container-name}") private val containerName: String,
 ) {
 
     @Bean
